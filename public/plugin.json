@@ -13,11 +13,14 @@
       "code": "home_by_text",
       "explain": "快捷命令面板 - 快速执行常用命令",
       "cmds": [
+        "flow",
+        "flowpilot",
         "workflows",
         "shortcuts",
         "快捷命令",
         "命令面板",
-        "工作流"
+        "工作流",
+        "指令"
       ]
     }
   ]

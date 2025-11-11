@@ -71,12 +71,11 @@ class SystemService {
 
   // 系统通知
   showNotification(message) {
-    const u = this.utools
-    if (u && typeof u.showNotification === 'function') {
-      return u.showNotification(message)
+    if (typeof window !== 'undefined' && window.services?.showNotification) {
+      return window.services.showNotification(message)
     }
-    // 退化为 console
-    console.info('[Notification]', message)
+    console.warn('window.services.showNotification 不可用')
+    return null
   }
 
   // ==================== 文件系统 ====================

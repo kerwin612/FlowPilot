@@ -80,6 +80,82 @@ function buildCommand(workflow, params = {}) {
   return cmd
 }
 
+/**
+ * 展开环境变量中的引用
+ * 支持 Windows 风格 %VAR% 和 Unix 风格 $VAR
+ * @param {Object} customEnv - 用户自定义环境变量
+ * @param {Object} baseEnv - 基础环境变量（通常是 process.env）
+ * @returns {Object} 展开后的环境变量
+ */
+function expandEnvVars(customEnv, baseEnv) {
+  if (!customEnv || typeof customEnv !== 'object') {
+    return {}
+  }
+
+  const expanded = {}
+  
+  // 先收集所有已展开的值，用于处理变量间的依赖
+  const resolving = new Set()
+
+  Object.keys(customEnv).forEach(key => {
+    expanded[key] = resolveVar(key, customEnv, baseEnv, expanded, resolving)
+  })
+
+  return expanded
+}
+
+function resolveVar(key, customEnv, baseEnv, expanded, resolving) {
+  // 防止循环引用
+  if (resolving.has(key)) {
+    return customEnv[key]
+  }
+
+  let value = customEnv[key]
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  resolving.add(key)
+
+  // 展开 Windows 风格的 %VAR%
+  value = value.replace(/%([^%]+)%/g, (match, varName) => {
+    // 如果引用的是自己，使用 baseEnv 中的值
+    if (varName === key) {
+      return baseEnv[varName] || ''
+    }
+    // 如果引用的是其他自定义变量，递归展开
+    if (customEnv.hasOwnProperty(varName)) {
+      if (!expanded.hasOwnProperty(varName)) {
+        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving)
+      }
+      return expanded[varName]
+    }
+    // 否则从 baseEnv 中查找
+    return baseEnv[varName] || match
+  })
+
+  // 展开 Unix 风格的 $VAR 和 ${VAR}
+  value = value.replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, braced, simple) => {
+    const varName = braced || simple
+    // 如果引用的是自己，使用 baseEnv 中的值
+    if (varName === key) {
+      return baseEnv[varName] || ''
+    }
+    // 如果引用的是其他自定义变量，递归展开
+    if (customEnv.hasOwnProperty(varName)) {
+      if (!expanded.hasOwnProperty(varName)) {
+        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving)
+      }
+      return expanded[varName]
+    }
+    // 否则从 baseEnv 中查找
+    return baseEnv[varName] || match
+  })
+
+  resolving.delete(key)
+  return value
+}
+
   // 责任边界说明：
   // 1. 本函数直接执行系统命令，不做内容审查或沙箱隔离
   // 2. 安全责任由调用方（工作流配置者）承担
@@ -88,16 +164,26 @@ function buildCommand(workflow, params = {}) {
 async function executeCommand(workflow, params = {}) {
   const cmd = buildCommand(workflow, params)
   try {
+    // 展开用户环境变量中的引用（如 %PATH%、$HOME 等）
+    const expandedEnv = expandEnvVars(workflow.env || {}, process.env)
+    const finalEnv = { ...process.env, ...expandedEnv }
+
     const result = await command(cmd, {
       detached: workflow.runInBackground || false,
       timeout: workflow.timeout || 0,
-      env: { ...process.env, ...(workflow.env || {}) },
+      env: finalEnv,
       showWindow: workflow.showWindow !== false
     })
     return { success: true, result }
   } catch (error) {
     console.error('命令执行失败:', error)
-    throw error
+    // 返回友好的错误信息而不是直接抛出
+    return {
+      success: false,
+      error: error.message || '命令执行失败',
+      code: error.code,
+      details: error.toString()
+    }
   }
 }
 

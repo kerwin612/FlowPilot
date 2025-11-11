@@ -1,8 +1,10 @@
 const browser = require('../core/browser.js')
+const { showNotification } = require('../core/system.js')
 
 // System- and shell-related helpers exposed to renderer
 module.exports = {
   browser,
+  showNotification,
   openExternal(url) {
     window.utools.shellOpenExternal(url)
   },

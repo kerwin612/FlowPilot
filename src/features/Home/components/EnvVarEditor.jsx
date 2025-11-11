@@ -10,7 +10,8 @@ import {
   Empty,
   message,
   Typography,
-  Tooltip
+  Tooltip,
+  Alert
 } from 'antd'
 import {
   PlusOutlined,
@@ -20,7 +21,8 @@ import {
   CloseOutlined,
   CopyOutlined,
   DownOutlined,
-  UpOutlined
+  UpOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
@@ -167,11 +169,12 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       render: (text, record) => {
         if (editingKey === record.id) {
           return (
-            <Input
+            <Input.TextArea
               value={editingValue}
               onChange={(e) => setEditingValue(e.target.value)}
-              placeholder="例如：production"
-              onPressEnter={() => handleSave(record.id)}
+              placeholder="例如：C:\Program Files\MyApp 或 %PATH%;C:\MyApp"
+              autoSize={{ minRows: 2, maxRows: 6 }}
+              style={{ fontFamily: 'monospace' }}
             />
           )
         }
@@ -310,6 +313,33 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       }
       bordered={false}
     >
+      <Alert
+        message="环境变量引用说明"
+        description={
+          <div style={{ fontSize: 12 }}>
+            <div>在变量值中可以引用其他环境变量：</div>
+            <ul style={{ marginTop: 4, marginBottom: 0, paddingLeft: 20 }}>
+              <li>
+                <strong>Windows 风格：</strong> 使用 <code>%变量名%</code>，例如{' '}
+                <code>PATH=%PATH%;C:\MyApp</code>
+              </li>
+              <li>
+                <strong>Unix 风格：</strong> 使用 <code>$变量名</code> 或 <code>${'{变量名}'}</code>
+                ，例如 <code>MYPATH=$HOME/bin</code>
+              </li>
+              <li>
+                <strong>引用自己：</strong> 使用 <code>PATH=%PATH%;新路径</code> 可以追加到现有 PATH
+                末尾
+              </li>
+            </ul>
+          </div>
+        }
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        style={{ marginBottom: 16 }}
+        closable
+      />
       {envVars.length > 0 ? (
         <div className="env-vars-table-wrap" style={{ width: '100%', overflowX: 'hidden' }}>
           {/* 说明：横向滚动条最初被隐藏导致最右侧内容被裁剪，这里通过给外层留出 paddingRight (≈ 系统滚动条宽度) 避免裁剪 */}

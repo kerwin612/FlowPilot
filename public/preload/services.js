@@ -13,6 +13,7 @@ window.services = {
   writeClipboard: systemService.writeClipboard,
   selectPath: systemService.selectPath,
   redirect: systemService.redirect,
+  showNotification: systemService.showNotification,
 
   workflow: {
     loadWorkflows: workflowsService.loadWorkflows,

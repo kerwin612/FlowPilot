@@ -121,6 +121,15 @@ export const CommandExecutor = {
       env: context?.env || {}
     }
     const execResult = await systemService.executeCommand(shortcutLike, {})
+
+    // 检查执行结果，如果失败则抛出友好错误
+    if (execResult && !execResult.success) {
+      const errorMsg = execResult.error || '命令执行失败'
+      const details =
+        execResult.code === 'ENOENT' ? '（找不到命令或可执行文件，请检查 PATH 环境变量配置）' : ''
+      throw new Error(`${errorMsg}${details}`)
+    }
+
     return { value: { command: cmd, execResult } }
   }
 }
