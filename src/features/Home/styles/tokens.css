@@ -1,0 +1,74 @@
+/**
+ * Design Tokens - 统一设计变量
+ * 基于 Ant Design 色彩体系
+ */
+
+:root {
+  /* === 主题色 === */
+  --color-primary: #1890ff;
+  --color-primary-light: #e6f7ff;
+  --color-primary-hover: #40a9ff;
+  --color-success: #52c41a;
+  --color-warning: #faad14;
+  --color-error: #f5222d;
+  --color-info: #13c2c2;
+
+  /* === 扩展色 === */
+  --color-orange: #fa541c;
+  --color-purple: #722ed1;
+  --color-magenta: #eb2f96;
+  --color-volcano: #fa541c;
+  --color-geekblue: #2f54eb;
+  --color-cyan: #13c2c2;
+
+  /* === 中性色 === */
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-secondary: rgba(0, 0, 0, 0.45);
+  --color-text-disabled: rgba(0, 0, 0, 0.25);
+  --color-text-inverse: #ffffff;
+
+  --color-border: #d9d9d9;
+  --color-border-light: #f0f0f0;
+  --color-border-dark: #bfbfbf;
+
+  --color-background: #ffffff;
+  --color-background-light: #fafafa;
+  --color-background-dark: #f5f5f5;
+  --color-background-overlay: rgba(0, 0, 0, 0.35);
+  /* 夜间模式（深色）扩展 */
+  --color-background-night: #303133;
+  --color-background-night-2: #424242;
+  --color-gray-600: #666666;
+
+  --color-icon-secondary: #999999;
+
+  /* === 间距 === */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+
+  /* === 圆角 === */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-circle: 50%;
+
+  /* === 字体大小 === */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+
+  /* === 阴影 === */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.09);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.2);
+
+  /* === 过渡 === */
+  --transition-base: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  --transition-fast: all 0.2s ease;
+}

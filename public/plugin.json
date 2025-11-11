@@ -1,0 +1,24 @@
+{
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "height": 800
+  },
+  "features": [
+    {
+      "code": "home_by_text",
+      "explain": "快捷命令面板 - 快速执行常用命令",
+      "cmds": [
+        "workflows",
+        "shortcuts",
+        "快捷命令",
+        "命令面板",
+        "工作流"
+      ]
+    }
+  ]
+}

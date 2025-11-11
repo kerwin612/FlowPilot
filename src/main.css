@@ -1,0 +1,60 @@
+:root {
+  /* kept for compatibility; prefer tokens in features/Home/styles/tokens.css */
+  --blue: var(--color-primary);
+  --light: var(--color-text-inverse);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  border: none;
+  background: none var(--color-primary);
+  color: var(--color-text-inverse);
+  line-height: 2.5;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  opacity: 0.6;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: var(--color-background-dark);
+  }
+  ::-webkit-scrollbar-track-piece {
+    background-color: var(--color-background-light);
+  }
+  ::-webkit-scrollbar-thumb {
+    border-color: var(--color-background-light);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  &::-webkit-scrollbar-track-piece {
+    background-color: var(--color-background-night);
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-gray-600);
+    border-color: var(--color-background-night);
+  }
+  body {
+    background-color: var(--color-background-night);
+    color: var(--color-text-inverse);
+  }
+}

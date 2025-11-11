@@ -1,0 +1,126 @@
+import { useState, useEffect } from 'react'
+import { Input, Switch, Space, Alert } from 'antd'
+import { resolveTemplate } from '../../engine/compile'
+import { systemService } from '../../../../../services'
+
+// 风险命令检测（提示用，不会阻止执行）
+const RISKY_PATTERNS = [
+  { key: 'rm-root', re: /\brm\s+-rf\s+\/$/i, hint: 'rm -rf /（删除根目录）' },
+  { key: 'sudo-rm', re: /\bsudo\s+rm\s+-rf\b/i, hint: 'sudo rm -rf（提权删除）' },
+  {
+    key: 'windows-del',
+    re: /\bdel\s+(?:[A-Za-z]:\\|\/)\S*/i,
+    hint: 'del 驱动器/根路径（Windows）'
+  },
+  { key: 'format-drive', re: /\bformat\s+[A-Za-z]:/i, hint: 'format 磁盘（Windows）' },
+  { key: 'dd-disk', re: /\bdd\s+.*of=\/dev\/sd[a-z]\d*/i, hint: 'dd 写入物理磁盘' },
+  { key: 'mkfs', re: /\bmkfs(?:\.\w+)?\s+\/dev\/sd[a-z]\d*/i, hint: 'mkfs 格式化分区' },
+  { key: 'fork-bomb', re: /:\s*\(\)\s*{\s*:\s*\|\s*:\s*&\s*}\s*;\s*:/, hint: 'fork bomb（自杀式）' }
+]
+
+function detectRisks(template) {
+  if (!template || typeof template !== 'string') return []
+  const text = template.trim()
+  return RISKY_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.hint)
+}
+
+const CommandConfig = ({ value = {}, onChange }) => {
+  const [template, setTemplate] = useState(value.template || '')
+  const [runInBackground, setRunInBackground] = useState(value.runInBackground || false)
+  const [showWindow, setShowWindow] = useState(value.showWindow !== false)
+  useEffect(() => {
+    setTemplate(value.template || '')
+  }, [value.template])
+  useEffect(() => {
+    setRunInBackground(value.runInBackground || false)
+  }, [value.runInBackground])
+  useEffect(() => {
+    setShowWindow(value.showWindow !== false)
+  }, [value.showWindow])
+  const risky = detectRisks(template)
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      {risky.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message="命令存在潜在高风险"
+          description={
+            <div>
+              <div style={{ marginBottom: 4, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                以下模式被检测到：
+              </div>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {risky.map((r) => (
+                  <li key={r} style={{ fontSize: 12 }}>
+                    {r}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                仅提示，不会阻止执行；请谨慎确认命令来源与影响。
+              </div>
+            </div>
+          }
+        />
+      )}
+      <Input.TextArea
+        rows={4}
+        placeholder={'示例: notepad {{executor[0].result.value.file}} 或 echo {{env.PATH}}'}
+        value={template}
+        onChange={(e) => setTemplate(e.target.value)}
+        onBlur={() => onChange({ ...(value || {}), template })}
+      />
+      <Space>
+        <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>后台运行:</span>
+        <Switch
+          size="small"
+          checked={runInBackground}
+          onChange={(checked) => {
+            setRunInBackground(checked)
+            onChange({ ...(value || {}), runInBackground: checked })
+          }}
+        />
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+          （启用后不等待命令完成，适合打开程序）
+        </span>
+      </Space>
+      <Space>
+        <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>显示执行窗口:</span>
+        <Switch
+          size="small"
+          checked={showWindow}
+          onChange={(checked) => {
+            setShowWindow(checked)
+            onChange({ ...(value || {}), showWindow: checked })
+          }}
+        />
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+          （关闭可避免黑框闪烁；开启可查看过程）
+        </span>
+      </Space>
+    </Space>
+  )
+}
+
+export const CommandExecutor = {
+  key: 'command',
+  label: '命令执行',
+  getDefaultConfig() {
+    return { template: '', runInBackground: false, showWindow: true }
+  },
+  ConfigComponent: CommandConfig,
+  async execute(trigger, context, config, options = {}) {
+    const fullContext = context
+    const cmd = resolveTemplate(config.template, fullContext)
+    if (!cmd.trim()) throw new Error('命令为空')
+    const shortcutLike = {
+      command: cmd,
+      runInBackground: config.runInBackground || false,
+      showWindow: config.showWindow !== false,
+      env: context?.env || {}
+    }
+    const execResult = await systemService.executeCommand(shortcutLike, {})
+    return { value: { command: cmd, execResult } }
+  }
+}
