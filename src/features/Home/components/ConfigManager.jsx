@@ -77,8 +77,15 @@ export default function ConfigManager({ config, onClose }) {
   }
 
   const updateTabName = (index, name) => {
+    // 验证名称不能为空
+    const trimmedName = name?.trim()
+    if (!trimmedName) {
+      setEditingTabName(null)
+      return
+    }
+    
     const newTabs = [...tabs]
-    newTabs[index].name = name
+    newTabs[index].name = trimmedName
     setTabs(newTabs)
     setEditingTabName(null)
   }

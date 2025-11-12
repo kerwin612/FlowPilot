@@ -30,12 +30,16 @@ function initDefaultConfig() {
       }
     ]
   }
-  storage.set(config)
+  
+  // 使用新的拆分存储
+  storage.saveFullConfig(config)
   return config
 }
 
 function loadWorkflows() {
-  let config = storage.get()
+  // 使用新的组装加载
+  let config = storage.loadFullConfig()
+  
   if (!config || !config.tabs) {
     config = initDefaultConfig()
     return config
@@ -50,19 +54,21 @@ function loadWorkflows() {
 
   const migrated = applyMigrations(config)
   if (migrated.changed) {
-    storage.set(migrated.config)
+    storage.saveFullConfig(migrated.config)
     return migrated.config
   }
   return config
 }
 
 function saveWorkflows(config) {
-  storage.set(config)
+  // 使用新的拆分存储
+  storage.saveFullConfig(config)
   return true
 }
 
 function resetWorkflows() {
-  storage.remove()
+  // 使用新的删除方法
+  storage.removeFullConfig()
   return initDefaultConfig()
 }
 
