@@ -16,9 +16,49 @@ window.services = {
   showNotification: systemService.showNotification,
 
   workflow: {
-    loadWorkflows: workflowsService.loadWorkflows,
-    saveWorkflows: workflowsService.saveWorkflows,
-    resetWorkflows: workflowsService.resetWorkflows,
+    // 初始化和重置
+    initDefault: workflowsService.initDefault,
+    resetAll: workflowsService.resetAll,
+    
+    // Config
+    getConfig: workflowsService.getConfig,
+    saveConfig: workflowsService.saveConfig,
+    
+    // Tab CRUD
+    getTabs: workflowsService.getTabs,
+    getTab: workflowsService.getTab,
+    saveTab: workflowsService.saveTab,
+    deleteTab: workflowsService.deleteTab,
+    updateTabs: workflowsService.updateTabs,
+    
+    // EnvVar CRUD
+    getEnvVars: workflowsService.getEnvVars,
+    getEnvVar: workflowsService.getEnvVar,
+    saveEnvVar: workflowsService.saveEnvVar,
+    deleteEnvVar: workflowsService.deleteEnvVar,
+    saveEnvVars: workflowsService.saveEnvVars,
+    
+    // GlobalVar CRUD
+    getGlobalVars: workflowsService.getGlobalVars,
+    getGlobalVar: workflowsService.getGlobalVar,
+    saveGlobalVar: workflowsService.saveGlobalVar,
+    deleteGlobalVar: workflowsService.deleteGlobalVar,
+    saveGlobalVars: workflowsService.saveGlobalVars,
+    
+    // Workflow CRUD
+    getWorkflows: workflowsService.getWorkflows,
+    getWorkflow: workflowsService.getWorkflow,
+    saveWorkflow: workflowsService.saveWorkflow,
+    deleteWorkflow: workflowsService.deleteWorkflow,
+    
+    // Folder CRUD
+    getFolders: workflowsService.getFolders,
+    getFolder: workflowsService.getFolder,
+    saveFolder: workflowsService.saveFolder,
+    deleteFolder: workflowsService.deleteFolder,
+    
+    // 业务逻辑
+    buildCommand: workflowsService.buildCommand,
     executeCommand: workflowsService.executeCommand
   }
 }

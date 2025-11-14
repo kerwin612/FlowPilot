@@ -35,43 +35,33 @@ import {
 const { Title, Text } = Typography
 
 export default function ConfigManager({ config, onClose }) {
-  const [tabs, setTabs] = useState(config.tabs || [])
+  const [tabs, setTabs] = useState(configService.getTabs())
   const [currentTabIndex, setCurrentTabIndex] = useState(0)
   const [editingItem, setEditingItem] = useState(null)
   const [editingTabName, setEditingTabName] = useState(null)
   const [expandedFolders, setExpandedFolders] = useState([])
-  const [envVars, setEnvVars] = useState(config.envVars || [])
-  const [globalVars, setGlobalVars] = useState(config.globalVars || [])
+  const [envVars, setEnvVars] = useState(configService.getEnvVars())
+  const [globalVars, setGlobalVars] = useState(configService.getGlobalVars())
   const [activeKey, setActiveKey] = useState('tabs')
 
-  // 实时保存：tabs、envVars 或 globalVars 变化时立刻持久化
-  useEffect(() => {
-    const newConfig = { ...config, tabs, envVars, globalVars }
-    configService.saveConfig(newConfig)
-  }, [tabs, envVars, globalVars])
-
   const handleReset = () => {
-    const defaultConfig = configService.resetConfig()
-    setTabs(defaultConfig.tabs || [])
-    setEnvVars(defaultConfig.envVars || [])
-    setGlobalVars(defaultConfig.globalVars || [])
+    configService.resetAll()
+    setTabs(configService.getTabs())
+    setEnvVars(configService.getEnvVars())
+    setGlobalVars(configService.getGlobalVars())
     setCurrentTabIndex(0)
   }
 
   // 标签页操作
   const addTab = () => {
-    const newTab = {
-      id: `tab_${Date.now()}`,
-      name: `标签页 ${tabs.length + 1}`,
-      items: []
-    }
-    const newTabs = [...tabs, newTab]
-    setTabs(newTabs)
-    setCurrentTabIndex(newTabs.length - 1)
+    const newTab = configService.addTab(`标签页 ${tabs.length + 1}`)
+    setTabs(configService.getTabs())
+    setCurrentTabIndex(tabs.length)
   }
 
   const deleteTab = (index) => {
-    const newTabs = tabs.filter((_, i) => i !== index)
+    configService.deleteTab(index)
+    const newTabs = configService.getTabs()
     setTabs(newTabs)
     if (currentTabIndex >= newTabs.length) {
       setCurrentTabIndex(Math.max(0, newTabs.length - 1))
@@ -86,9 +76,8 @@ export default function ConfigManager({ config, onClose }) {
       return
     }
     
-    const newTabs = [...tabs]
-    newTabs[index].name = trimmedName
-    setTabs(newTabs)
+    configService.updateTab(index, { name: trimmedName })
+    setTabs(configService.getTabs())
     setEditingTabName(null)
   }
 
@@ -102,15 +91,11 @@ export default function ConfigManager({ config, onClose }) {
   }
 
   const deleteItem = (itemId) => {
-    const newTabs = [...tabs]
-    newTabs[currentTabIndex].items = newTabs[currentTabIndex].items.filter((it) => it.id !== itemId)
-    setTabs(newTabs)
+    configService.deleteItem(currentTabIndex, itemId)
+    setTabs(configService.getTabs())
   }
 
   const saveItem = (itemData) => {
-    const newTabs = [...tabs]
-    const currentTab = newTabs[currentTabIndex]
-
     if (editingItem.isNew) {
       // Generate ID and force type 'workflow' for non-folder
       const elementType =
@@ -126,13 +111,14 @@ export default function ConfigManager({ config, onClose }) {
       if (editingItem.type === ITEM_TYPE_FOLDER && !newItem.items) {
         newItem.items = []
       }
-      currentTab.items = [...(currentTab.items || []), newItem]
+      configService.addItem(currentTabIndex, newItem)
     } else {
-      const index = currentTab.items.findIndex((it) => it.id === itemData.id)
+      const tab = tabs[currentTabIndex]
+      const index = tab.items.findIndex((it) => it.id === itemData.id)
       if (index !== -1) {
-        const prev = currentTab.items[index]
+        const prev = tab.items[index]
         const isFolder = prev.type === ITEM_TYPE_FOLDER
-        currentTab.items[index] = {
+        const updatedItem = {
           ...prev,
           ...itemData,
           id: prev.id,
@@ -148,20 +134,22 @@ export default function ConfigManager({ config, onClose }) {
               ? itemData.actions
               : prev.actions || []
         }
+        configService.updateItem(currentTabIndex, updatedItem.id, updatedItem)
       }
     }
 
-    setTabs(newTabs)
+    setTabs(configService.getTabs())
     setEditingItem(null)
   }
 
   // 删除文件夹内的项目
   const deleteItemInFolder = (folderId, itemId) => {
-    const newTabs = [...tabs]
-    const folder = newTabs[currentTabIndex].items.find((it) => it.id === folderId)
+    const tab = tabs[currentTabIndex]
+    const folder = tab.items.find((it) => it.id === folderId)
     if (folder && folder.items) {
       folder.items = folder.items.filter((it) => it.id !== itemId)
-      setTabs(newTabs)
+      configService.updateItem(currentTabIndex, folderId, folder)
+      setTabs(configService.getTabs())
     }
   }
 
@@ -172,8 +160,8 @@ export default function ConfigManager({ config, onClose }) {
 
   // 保存文件夹内的项目
   const saveItemInFolder = (itemData, folderId) => {
-    const newTabs = [...tabs]
-    const folder = newTabs[currentTabIndex].items.find((it) => it.id === folderId)
+    const tab = tabs[currentTabIndex]
+    const folder = tab.items.find((it) => it.id === folderId)
 
     if (!folder) return
 
@@ -200,7 +188,8 @@ export default function ConfigManager({ config, onClose }) {
       }
     }
 
-    setTabs(newTabs)
+    configService.updateItem(currentTabIndex, folderId, folder)
+    setTabs(configService.getTabs())
     setEditingItem(null)
   }
 
@@ -534,7 +523,15 @@ export default function ConfigManager({ config, onClose }) {
             {
               key: 'env',
               label: <Space>环境变量</Space>,
-              children: <EnvVarEditor envVars={envVars} onChange={setEnvVars} />
+              children: (
+                <EnvVarEditor
+                  envVars={envVars}
+                  onChange={(newEnvVars) => {
+                    configService.saveEnvVars(newEnvVars)
+                    setEnvVars(configService.getEnvVars())
+                  }}
+                />
+              )
             },
             {
               key: 'globalvars',
@@ -543,7 +540,10 @@ export default function ConfigManager({ config, onClose }) {
                 <GlobalVarEditor
                   globalVars={globalVars}
                   allTags={configService.getAllTags(globalVars)}
-                  onChange={setGlobalVars}
+                  onChange={(newGlobalVars) => {
+                    configService.saveGlobalVars(newGlobalVars)
+                    setGlobalVars(configService.getGlobalVars())
+                  }}
                 />
               )
             }

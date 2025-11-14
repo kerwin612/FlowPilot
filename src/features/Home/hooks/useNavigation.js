@@ -5,26 +5,27 @@ import { configService } from '../../../services'
  * 导航管理 Hook
  * 管理标签页切换和文件夹导航
  */
-export default function useNavigation(config, initialTabIndex = 0) {
+export default function useNavigation(tabs, initialTabIndex = 0) {
   const [currentTabIndex, setCurrentTabIndex] = useState(initialTabIndex)
   const [currentFolder, setCurrentFolder] = useState(null)
 
   const getCurrentItems = () => {
-    if (!config) return []
+    if (!tabs || tabs.length === 0) return []
 
     if (currentFolder) {
-      const tab = configService.getTab(currentFolder.tabIndex)
+      const tab = tabs[currentFolder.tabIndex]
       const folder = tab?.items?.find(
         (it) => it.id === currentFolder.folderId && it.type === 'folder'
       )
       return folder?.items || []
     }
 
-    return configService.getTabItems(currentTabIndex)
+    const tab = tabs[currentTabIndex]
+    return tab?.items || []
   }
 
   const getCurrentTab = () => {
-    return configService.getTab(currentTabIndex)
+    return tabs && tabs[currentTabIndex]
   }
 
   const enterFolder = (folderId) => {

@@ -12,7 +12,7 @@ export default function App() {
 
   useEffect(() => {
     // 加载配置并同步动态指令
-    const config = configService.loadConfig()
+    configService.loadAll()
     const workflows = configService.getAllWorkflows()
     featureService.syncAllWorkflows(workflows)
 

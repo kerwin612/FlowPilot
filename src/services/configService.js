@@ -2,141 +2,81 @@
  * ConfigService - 配置管理服务
  *
  * 职责：
- * 1. 统一管理所有配置的读取和保存
- * 2. 封装 window.services.workflow.* 配置持久化调用
+ * 1. 统一管理所有配置的读取和保存（调用后端细粒度API）
+ * 2. 封装 window.services.workflow.* 的CRUD调用
  * 3. 提供响应式配置订阅机制
- * 4. 管理环境变量配置
+ * 4. 管理本地缓存和状态
  *
- * 边界约定：
+ * 架构约定：
  * - UI 组件仅通过此服务访问配置，不直接调用 window.services
  * - 配置变更通过 subscribe/notify 机制广播
+ * - 每个实体独立CRUD，不再传递大对象
  */
 
 class ConfigService {
   constructor() {
-    this.config = null
+    // 本地缓存
+    this.config = null  // 主配置（版本、平台、tabs引用）
+    this.tabs = []
+    this.envVars = []
+    this.globalVars = []
+    
     this.listeners = []
   }
 
   /**
-   * 加载配置
+   * 加载所有配置到本地缓存
    */
-  loadConfig() {
-    this.config = window.services.workflow.loadWorkflows()
-    this.notifyListeners()
-    return this.config
+  loadAll() {
+    try {
+      this.config = window.services.workflow.getConfig()
+      this.tabs = window.services.workflow.getTabs()
+      this.envVars = window.services.workflow.getEnvVars()
+      this.globalVars = window.services.workflow.getGlobalVars()
+      
+      this.notifyListeners()
+      
+      return {
+        config: this.config,
+        tabs: this.tabs,
+        envVars: this.envVars,
+        globalVars: this.globalVars
+      }
+    } catch (error) {
+      console.error('[ConfigService] 加载配置失败:', error)
+      throw error
+    }
   }
 
   /**
-   * 保存配置
+   * 重置所有配置
    */
-  saveConfig(newConfig) {
-    window.services.workflow.saveWorkflows(newConfig)
-    this.config = newConfig
-    this.notifyListeners()
+  resetAll() {
+    window.services.workflow.resetAll()
+    return this.loadAll()
   }
 
   /**
-   * 重置配置
-   */
-  resetConfig() {
-    const defaultConfig = window.services.workflow.resetWorkflows()
-    this.config = defaultConfig
-    this.notifyListeners()
-    return defaultConfig
-  }
-
-  /**
-   * 获取当前配置
+   * 获取当前本地缓存的配置
    */
   getConfig() {
     return this.config
   }
 
+  // ==================== Tab 操作 ====================
+
   /**
    * 获取所有标签页
    */
   getTabs() {
-    return this.config?.tabs || []
-  }
-
-  /**
-   * 获取环境变量配置
-   */
-  getEnvVars() {
-    return this.config?.envVars || []
-  }
-
-  /**
-   * 获取启用的环境变量（用于执行时注入）
-   */
-  getEnabledEnvVars() {
-    const envVars = this.getEnvVars()
-    return envVars
-      .filter((v) => v.enabled && v.name && v.name.trim())
-      .reduce((acc, v) => {
-        acc[v.name.trim()] = v.value || ''
-        return acc
-      }, {})
-  }
-
-  /**
-   * 获取全局变量配置
-   */
-  getGlobalVars() {
-    return this.config?.globalVars || []
-  }
-
-  /**
-   * 获取全局变量 Map（用于模板解析）
-   * 返回的对象包含：
-   * - 直接 key-value 映射（用于 {{vars.KEY}} 访问，取第一个匹配的值）
-   * - _raw 属性（原始数组，用于标签筛选）
-   */
-  getGlobalVarsMap() {
-    const globalVars = this.getGlobalVars()
-    const map = {}
-    
-    // key 可以重复，相同 key 的变量按顺序保存
-    // 直接访问 vars.KEY 时取第一个匹配的值
-    globalVars.forEach((v) => {
-      if (v.key && v.key.trim()) {
-        const key = v.key.trim()
-        // 只保存第一个出现的 key 对应的 value（用于直接访问）
-        if (!(key in map)) {
-          map[key] = v.value || ''
-        }
-      }
-    })
-    
-    // 附加原始数组，用于标签筛选和索引访问
-    map._raw = globalVars
-    return map
-  }
-
-  /**
-   * 获取所有已使用的标签（用于筛选和自动补全）
-   * @param {Array} globalVars - 可选：直接传入全局变量数组（用于实时获取，不依赖 this.config）
-   * @returns {Array} 排序后的标签数组
-   */
-  getAllTags(globalVars) {
-    // 如果没有传入参数，从 config 中获取
-    const vars = globalVars || this.getGlobalVars()
-    const tagsSet = new Set()
-    vars.forEach((v) => {
-      if (v.tags && Array.isArray(v.tags)) {
-        v.tags.forEach((tag) => tagsSet.add(tag))
-      }
-    })
-    return Array.from(tagsSet).sort()
+    return this.tabs
   }
 
   /**
    * 获取指定标签页
    */
   getTab(tabIndex) {
-    const tabs = this.getTabs()
-    return tabs[tabIndex] || null
+    return this.tabs[tabIndex] || null
   }
 
   /**
@@ -156,8 +96,11 @@ class ConfigService {
       name: tabName,
       items: []
     }
-    const tabs = [...this.getTabs(), newTab]
-    this.saveConfig({ ...this.config, tabs })
+    
+    window.services.workflow.saveTab(newTab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
+    
     return newTab
   }
 
@@ -165,78 +108,98 @@ class ConfigService {
    * 更新标签页
    */
   updateTab(tabIndex, updates) {
-    const tabs = [...this.getTabs()]
-    if (tabs[tabIndex]) {
-      tabs[tabIndex] = { ...tabs[tabIndex], ...updates }
-      this.saveConfig({ ...this.config, tabs })
-    }
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    const updatedTab = { ...tab, ...updates }
+    window.services.workflow.saveTab(updatedTab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
 
   /**
    * 删除标签页
    */
   deleteTab(tabIndex) {
-    const tabs = this.getTabs().filter((_, i) => i !== tabIndex)
-    this.saveConfig({ ...this.config, tabs })
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    window.services.workflow.deleteTab(tab.id)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
+
+  /**
+   * 批量更新标签页（用于重新排序等）
+   */
+  updateTabs(newTabs) {
+    window.services.workflow.updateTabs(newTabs)
+    this.tabs = newTabs
+    this.notifyListeners()
+  }
+
+  // ==================== Tab 内项目操作 ====================
 
   /**
    * 添加项目到标签页
    */
   addItem(tabIndex, item) {
-    const tabs = [...this.getTabs()]
-    const tab = tabs[tabIndex]
-    if (tab) {
-      tab.items = [...(tab.items || []), item]
-      this.saveConfig({ ...this.config, tabs })
-    }
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    tab.items = [...(tab.items || []), item]
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
 
   /**
    * 更新项目
    */
   updateItem(tabIndex, itemId, updates) {
-    const tabs = [...this.getTabs()]
-    const tab = tabs[tabIndex]
-    if (tab) {
-      const itemIndex = tab.items.findIndex((item) => item.id === itemId)
-      if (itemIndex !== -1) {
-        tab.items[itemIndex] = { ...tab.items[itemIndex], ...updates }
-        this.saveConfig({ ...this.config, tabs })
-      }
-    }
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    const itemIndex = tab.items.findIndex((item) => item.id === itemId)
+    if (itemIndex === -1) return
+    
+    tab.items[itemIndex] = { ...tab.items[itemIndex], ...updates }
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
 
   /**
    * 删除项目
    */
   deleteItem(tabIndex, itemId) {
-    const tabs = [...this.getTabs()]
-    const tab = tabs[tabIndex]
-    if (tab) {
-      tab.items = tab.items.filter((item) => item.id !== itemId)
-      this.saveConfig({ ...this.config, tabs })
-    }
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    tab.items = tab.items.filter((item) => item.id !== itemId)
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
 
   /**
    * 重新排序项目
    */
   reorderItems(tabIndex, newOrder) {
-    const tabs = [...this.getTabs()]
-    const tab = tabs[tabIndex]
-    if (tab) {
-      tab.items = newOrder
-      this.saveConfig({ ...this.config, tabs })
-    }
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    
+    tab.items = newOrder
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
 
   /**
    * 将项目移动到文件夹
    */
   moveItemToFolder(tabIndex, itemId, folderId) {
-    const tabs = [...this.getTabs()]
-    const tab = tabs[tabIndex]
+    const tab = this.tabs[tabIndex]
     if (!tab) return
 
     // 找到要移动的项目
@@ -252,8 +215,166 @@ class ConfigService {
       folder.items = [...(folder.items || []), item]
     }
 
-    this.saveConfig({ ...this.config, tabs })
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
   }
+
+  // ==================== EnvVar 操作 ====================
+
+  /**
+   * 获取所有环境变量
+   */
+  getEnvVars() {
+    return this.envVars
+  }
+
+  /**
+   * 获取启用的环境变量（用于执行时注入）
+   */
+  getEnabledEnvVars() {
+    return this.envVars
+      .filter((v) => v.enabled && v.name && v.name.trim())
+      .reduce((acc, v) => {
+        acc[v.name.trim()] = v.value || ''
+        return acc
+      }, {})
+  }
+
+  /**
+   * 保存单个环境变量
+   */
+  saveEnvVar(envVar) {
+    window.services.workflow.saveEnvVar(envVar)
+    this.envVars = window.services.workflow.getEnvVars()
+    this.notifyListeners()
+  }
+
+  /**
+   * 删除环境变量
+   */
+  deleteEnvVar(id) {
+    window.services.workflow.deleteEnvVar(id)
+    this.envVars = window.services.workflow.getEnvVars()
+    this.notifyListeners()
+  }
+
+  /**
+   * 批量保存环境变量
+   */
+  saveEnvVars(envVars) {
+    window.services.workflow.saveEnvVars(envVars)
+    this.envVars = window.services.workflow.getEnvVars()
+    this.notifyListeners()
+  }
+
+  // ==================== GlobalVar 操作 ====================
+
+  /**
+   * 获取所有全局变量
+   */
+  getGlobalVars() {
+    return this.globalVars
+  }
+
+  /**
+   * 获取全局变量 Map（用于模板解析）
+   * 返回的对象包含：
+   * - 直接 key-value 映射（用于 {{vars.KEY}} 访问，取第一个匹配的值）
+   * - _raw 属性（原始数组，用于标签筛选）
+   */
+  getGlobalVarsMap() {
+    const map = {}
+    
+    // key 可以重复，相同 key 的变量按顺序保存
+    // 直接访问 vars.KEY 时取第一个匹配的值
+    this.globalVars.forEach((v) => {
+      if (v.key && v.key.trim()) {
+        const key = v.key.trim()
+        // 只保存第一个出现的 key 对应的 value（用于直接访问）
+        if (!(key in map)) {
+          map[key] = v.value || ''
+        }
+      }
+    })
+    
+    // 附加原始数组，用于标签筛选和索引访问
+    map._raw = this.globalVars
+    return map
+  }
+
+  /**
+   * 获取所有已使用的标签（用于筛选和自动补全）
+   * @param {Array} globalVars - 可选：直接传入全局变量数组（用于实时获取，不依赖缓存）
+   * @returns {Array} 排序后的标签数组
+   */
+  getAllTags(globalVars) {
+    const vars = globalVars || this.globalVars
+    const tagsSet = new Set()
+    vars.forEach((v) => {
+      if (v.tags && Array.isArray(v.tags)) {
+        v.tags.forEach((tag) => tagsSet.add(tag))
+      }
+    })
+    return Array.from(tagsSet).sort()
+  }
+
+  /**
+   * 保存单个全局变量
+   */
+  saveGlobalVar(globalVar) {
+    window.services.workflow.saveGlobalVar(globalVar)
+    this.globalVars = window.services.workflow.getGlobalVars()
+    this.notifyListeners()
+  }
+
+  /**
+   * 删除全局变量
+   */
+  deleteGlobalVar(id) {
+    window.services.workflow.deleteGlobalVar(id)
+    this.globalVars = window.services.workflow.getGlobalVars()
+    this.notifyListeners()
+  }
+
+  /**
+   * 批量保存全局变量
+   */
+  saveGlobalVars(globalVars) {
+    window.services.workflow.saveGlobalVars(globalVars)
+    this.globalVars = window.services.workflow.getGlobalVars()
+    this.notifyListeners()
+  }
+
+  // ==================== 工具方法 ====================
+
+  /**
+   * 获取所有工作流（扁平化，包括文件夹内的）
+   * 用于注册动态指令
+   */
+  getAllWorkflows() {
+    const workflows = []
+    
+    const collectWorkflows = (items) => {
+      items.forEach((item) => {
+        if (item.type === 'workflow') {
+          workflows.push(item)
+        } else if (item.type === 'folder' && Array.isArray(item.items)) {
+          collectWorkflows(item.items)
+        }
+      })
+    }
+
+    this.tabs.forEach((tab) => {
+      if (Array.isArray(tab.items)) {
+        collectWorkflows(tab.items)
+      }
+    })
+
+    return workflows
+  }
+
+  // ==================== 订阅机制 ====================
 
   /**
    * 订阅配置变化
@@ -269,34 +390,12 @@ class ConfigService {
    * 通知所有订阅者
    */
   notifyListeners() {
-    this.listeners.forEach((listener) => listener(this.config))
-  }
-
-  /**
-   * 获取所有工作流（扁平化，包括文件夹内的）
-   * 用于注册动态指令
-   */
-  getAllWorkflows() {
-    const workflows = []
-    const tabs = this.getTabs()
-
-    const collectWorkflows = (items) => {
-      items.forEach((item) => {
-        if (item.type === 'workflow') {
-          workflows.push(item)
-        } else if (item.type === 'folder' && Array.isArray(item.items)) {
-          collectWorkflows(item.items)
-        }
-      })
-    }
-
-    tabs.forEach((tab) => {
-      if (Array.isArray(tab.items)) {
-        collectWorkflows(tab.items)
-      }
-    })
-
-    return workflows
+    this.listeners.forEach((listener) => listener({
+      config: this.config,
+      tabs: this.tabs,
+      envVars: this.envVars,
+      globalVars: this.globalVars
+    }))
   }
 }
 

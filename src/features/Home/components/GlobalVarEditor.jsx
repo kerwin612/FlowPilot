@@ -19,8 +19,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
-  CheckOutlined,
-  CloseOutlined,
   CopyOutlined,
   DownOutlined,
   UpOutlined,
@@ -131,7 +129,7 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 180,
+      width: 150,
       render: (text, record) => (
         <div>
           <Text style={{ fontWeight: 500 }}>{text || <Text type="secondary">未设置</Text>}</Text>
@@ -160,7 +158,7 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
       title: '标签',
       dataIndex: 'tags',
       key: 'tags',
-      width: 200,
+      width: 150,
       render: (tags) => (
         <Space size={4} wrap>
           {tags && tags.length > 0 ? (
@@ -247,7 +245,7 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 80,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -283,9 +281,7 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
                 可在所有工作流的配置中通过 {`{{vars.KEY}}`} 引用
               </Text>
             </Space>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              添加变量
-            </Button>
+            <Button title="添加变量" icon={<PlusOutlined />} onClick={handleAdd}></Button>
           </Space>
         }
         bordered={false}
@@ -403,12 +399,12 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
             rules={[
               { required: true, message: '请输入 Key' },
               {
-                pattern: /^[A-Z][A-Z0-9_]*$/,
-                message: 'Key 必须以大写字母开头，只能包含大写字母、数字和下划线'
+                pattern: /^[A-Za-z_][A-Za-z0-9_]*$/,
+                message: 'Key 仅允许字母、数字和下划线，且不能以数字开头（POSIX 风格）'
               }
             ]}
           >
-            <Input placeholder="如: APP1_TEST_API (大写字母、数字、下划线)" />
+            <Input placeholder="如: app1_test_api 或 APP1_TEST_API（字母/数字/下划线，首字符非数字）" />
           </Form.Item>
 
           <Form.Item
@@ -416,15 +412,14 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
             label="值"
             rules={[
               { required: true, message: '请输入值' },
-              { max: 10000, message: '值长度不能超过 10000 字符' }
+              { max: 100000, message: '值长度不能超过 100000 字符' }
             ]}
           >
             <Input.TextArea
               placeholder="变量的值"
-              autoSize={{ minRows: 2, maxRows: 6 }}
-              style={{ fontFamily: 'monospace' }}
+              style={{ fontFamily: 'monospace', resize: 'vertical', minHeight: 64, maxHeight: 600 }}
               showCount
-              maxLength={10000}
+              maxLength={100000}
             />
           </Form.Item>
 

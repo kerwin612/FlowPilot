@@ -10,8 +10,8 @@ import FolderCard from './components/FolderCard'
 import ConfigManager from './components/ConfigManager'
 
 export default function Home({ enterAction: _enterAction }) {
-  const { config, reload } = useConfig()
-  const { currentTabIndex, currentItems, switchTab } = useNavigation(config)
+  const { config, tabs, envVars, globalVars, reload } = useConfig()
+  const { currentTabIndex, currentItems, switchTab } = useNavigation(tabs)
   const { execute, loadingMap } = useWorkflowExecution()
 
   const [filter, setFilter] = useState('')
@@ -44,18 +44,18 @@ export default function Home({ enterAction: _enterAction }) {
 
   // 检测并修正无效的 activeTabKey（当删除当前 tab 后）
   useEffect(() => {
-    if (config && !filter) {
-      const validKeys = (config.tabs || []).map((_, i) => String(i))
+    if (tabs && !filter) {
+      const validKeys = tabs.map((_, i) => String(i))
       if (validKeys.length > 0 && !validKeys.includes(activeTabKey)) {
         // 当前 activeTabKey 无效，切换到第一个 tab
         setActiveTabKey('0')
         switchTab(0)
       }
     }
-  }, [config, filter, activeTabKey, switchTab])
+  }, [tabs, filter, activeTabKey, switchTab])
 
   // 收集所有工作流（非文件夹，仅 type === 'workflow'）
-  const allWorkflows = (config?.tabs || []).flatMap((tab) =>
+  const allWorkflows = (tabs || []).flatMap((tab) =>
     (tab.items || []).flatMap((item) => {
       if (item.type === 'folder') {
         return (item.items || []).filter((sub) => sub && sub.type === 'workflow')
@@ -124,7 +124,7 @@ export default function Home({ enterAction: _enterAction }) {
 
   // 添加普通 tabs
   tabItems.push(
-    ...(config.tabs || []).map((t, i) => ({
+    ...(tabs || []).map((t, i) => ({
       key: String(i),
       label: t.name
     }))
@@ -165,7 +165,7 @@ export default function Home({ enterAction: _enterAction }) {
             description={
               filter
                 ? '没有找到匹配的工作流'
-                : config.tabs && config.tabs.length > 0
+                : tabs && tabs.length > 0
                   ? '当前标签页暂无内容，点击右上角配置添加'
                   : '暂无标签页，点击右上角配置开始添加'
             }

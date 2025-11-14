@@ -7,15 +7,24 @@ import { configService } from '../../../services'
  */
 export default function useConfig() {
   const [config, setConfig] = useState(null)
+  const [tabs, setTabs] = useState([])
+  const [envVars, setEnvVars] = useState([])
+  const [globalVars, setGlobalVars] = useState([])
 
   useEffect(() => {
     // 初始加载
-    const cfg = configService.loadConfig()
-    setConfig(cfg)
+    const data = configService.loadAll()
+    setConfig(data.config)
+    setTabs(data.tabs)
+    setEnvVars(data.envVars)
+    setGlobalVars(data.globalVars)
 
     // 订阅配置变化
-    const unsubscribe = configService.subscribe((newConfig) => {
-      setConfig(newConfig)
+    const unsubscribe = configService.subscribe((newData) => {
+      setConfig(newData.config)
+      setTabs(newData.tabs)
+      setEnvVars(newData.envVars)
+      setGlobalVars(newData.globalVars)
     })
 
     return unsubscribe
@@ -23,9 +32,15 @@ export default function useConfig() {
 
   return {
     config,
+    tabs,
+    envVars,
+    globalVars,
     reload: () => {
-      const cfg = configService.loadConfig()
-      setConfig(cfg)
+      const data = configService.loadAll()
+      setConfig(data.config)
+      setTabs(data.tabs)
+      setEnvVars(data.envVars)
+      setGlobalVars(data.globalVars)
     }
   }
 }
