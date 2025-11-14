@@ -3,13 +3,13 @@ const command = require('../../core/command.js')
 const getPlatform = require('../platform.js')
 const defaults = require('./defaults.js')
 const storage = require('./storage.js')
-const { applyMigrations, CONFIG_VERSION } = require('./migrations.js')
+
+const CONFIG_VERSION = '1.0'
 
 function initDefaultConfig() {
   const platform = getPlatform()
   const defaultTabs = defaults[platform] || defaults.linux
   const config = {
-    // 统一使用语义化字符串版本，迁移逻辑参见 migrations.js
     version: CONFIG_VERSION,
     platform,
     tabs: defaultTabs,
@@ -52,11 +52,6 @@ function loadWorkflows() {
     config.version = String(config.version) + '.0'
   }
 
-  const migrated = applyMigrations(config)
-  if (migrated.changed) {
-    storage.saveFullConfig(migrated.config)
-    return migrated.config
-  }
   return config
 }
 

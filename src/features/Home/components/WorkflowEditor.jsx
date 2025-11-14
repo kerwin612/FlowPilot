@@ -8,7 +8,6 @@ import CmdsEditor from './WorkflowEditor/CmdsEditor'
 import { executorRegistry } from '../workflow/executors/registry'
 import { actionRegistry } from '../workflow/actions/registry'
 import {
-  WORKFLOW_MODE_COMPOSED,
   ICON_TYPE_BUILTIN,
   ICON_TYPE_IMAGE,
   DEFAULT_ICON_KEY,
@@ -123,7 +122,6 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       const values = await form.validateFields()
 
       if (type !== ITEM_TYPE_FOLDER) {
-        values.mode = WORKFLOW_MODE_COMPOSED
         values.executors = executors
         values.actions = actions
 

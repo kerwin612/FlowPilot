@@ -1,7 +1,5 @@
-import { WORKFLOW_MODE_COMPOSED } from '../../../shared/constants'
-
 export function getWorkflowDisplayText(workflow) {
-  if (!workflow || workflow.mode !== WORKFLOW_MODE_COMPOSED) return ''
+  if (!workflow) return ''
   const parts = []
   ;(workflow.executors || []).forEach((ex) => {
     if (ex.key === 'command') {

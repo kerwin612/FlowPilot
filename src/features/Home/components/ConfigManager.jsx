@@ -27,7 +27,6 @@ import EnvVarEditor from './EnvVarEditor'
 import { configService } from '../../../services'
 import { getWorkflowDisplayText } from '../workflow/workflowDisplay'
 import {
-  WORKFLOW_MODE_COMPOSED,
   ITEM_TYPE_WORKFLOW,
   ITEM_TYPE_FOLDER
 } from '../../../shared/constants'
@@ -117,7 +116,6 @@ export default function ConfigManager({ config, onClose }) {
         ...itemData,
         id: `${elementType}_${Date.now()}`,
         type: elementType,
-        mode: elementType === ITEM_TYPE_FOLDER ? undefined : WORKFLOW_MODE_COMPOSED,
         executors: elementType === ITEM_TYPE_FOLDER ? undefined : itemData.executors || [],
         actions: elementType === ITEM_TYPE_FOLDER ? undefined : itemData.actions || []
       }
@@ -136,7 +134,6 @@ export default function ConfigManager({ config, onClose }) {
           ...itemData,
           id: prev.id,
           type: isFolder ? ITEM_TYPE_FOLDER : ITEM_TYPE_WORKFLOW,
-          mode: isFolder ? undefined : WORKFLOW_MODE_COMPOSED,
           executors: isFolder
             ? undefined
             : Array.isArray(itemData.executors)
@@ -182,8 +179,7 @@ export default function ConfigManager({ config, onClose }) {
       const newItem = {
         ...itemData,
         id: `${ITEM_TYPE_WORKFLOW}_${Date.now()}`,
-        type: ITEM_TYPE_WORKFLOW,
-        mode: WORKFLOW_MODE_COMPOSED
+        type: ITEM_TYPE_WORKFLOW
       }
       folder.items = [...(folder.items || []), newItem]
     } else {
@@ -195,7 +191,6 @@ export default function ConfigManager({ config, onClose }) {
           ...itemData,
           id: prev.id,
           type: ITEM_TYPE_WORKFLOW,
-          mode: WORKFLOW_MODE_COMPOSED,
           executors: Array.isArray(itemData.executors) ? itemData.executors : prev.executors || [],
           actions: Array.isArray(itemData.actions) ? itemData.actions : prev.actions || []
         }

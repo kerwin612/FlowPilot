@@ -3,12 +3,6 @@
  * 统一工作流模型、类型等关键字符串，避免魔法值散落各处
  */
 
-// ==================== 工作流模式 ====================
-/**
- * 工作流模式：组合式（新架构，由执行器链 + 动作器组成）
- */
-export const WORKFLOW_MODE_COMPOSED = 'composed'
-
 // ==================== 项目类型 ====================
 /**
  * 配置项类型：工作流
@@ -38,10 +32,6 @@ export const ICON_TYPE_IMAGE = 'image'
 export const CONFIG_VERSION = '1.0'
 
 // ==================== 默认值 ====================
-/**
- * 默认工作流模式
- */
-export const DEFAULT_WORKFLOW_MODE = WORKFLOW_MODE_COMPOSED
 
 /**
  * 默认图标

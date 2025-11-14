@@ -1,6 +1,5 @@
 import { systemService, configService } from './index'
 import { runComposedWorkflow } from '../features/Home/workflow/engine/runWorkflow'
-import { WORKFLOW_MODE_COMPOSED } from '../shared/constants'
 import { isCancelError } from '../features/Home/workflow/engine/errors'
 
 class WorkflowService {
@@ -30,10 +29,6 @@ class WorkflowService {
     this.abortControllers.set(key, abortController)
 
     try {
-      if (!workflow || workflow.mode !== WORKFLOW_MODE_COMPOSED) {
-        throw new Error('工作流未使用新结构(mode=composed)，请重新创建')
-      }
-
       // 构建完整的 trigger 对象
       const trigger = {
         // 动态指令数据（从 uTools onPluginEnter 传入）
