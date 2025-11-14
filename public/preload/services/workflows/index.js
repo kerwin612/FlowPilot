@@ -28,6 +28,16 @@ function initDefaultConfig() {
         enabled: true,
         description: '临时目录'
       }
+    ],
+    globalVars: [
+      {
+        id: 'globalvar_example',
+        name: '示例变量',
+        key: 'EXAMPLE_VAR',
+        value: 'example_value',
+        tags: ['example', 'demo'],
+        description: '这是一个全局变量示例，可用于所有工作流'
+      }
     ]
   }
   

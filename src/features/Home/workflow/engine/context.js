@@ -1,8 +1,9 @@
-export function createExecutionContext(workflow, trigger = {}, env = {}) {
+export function createExecutionContext(workflow, trigger = {}, env = {}, vars = {}) {
   return {
     workflow,
     trigger,
     env,
+    vars,
     timestamp: new Date(),
     values: {},
     executors: []

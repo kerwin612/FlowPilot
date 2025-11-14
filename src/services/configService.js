@@ -81,6 +81,57 @@ class ConfigService {
   }
 
   /**
+   * 获取全局变量配置
+   */
+  getGlobalVars() {
+    return this.config?.globalVars || []
+  }
+
+  /**
+   * 获取全局变量 Map（用于模板解析）
+   * 返回的对象包含：
+   * - 直接 key-value 映射（用于 {{vars.KEY}} 访问，取第一个匹配的值）
+   * - _raw 属性（原始数组，用于标签筛选）
+   */
+  getGlobalVarsMap() {
+    const globalVars = this.getGlobalVars()
+    const map = {}
+    
+    // key 可以重复，相同 key 的变量按顺序保存
+    // 直接访问 vars.KEY 时取第一个匹配的值
+    globalVars.forEach((v) => {
+      if (v.key && v.key.trim()) {
+        const key = v.key.trim()
+        // 只保存第一个出现的 key 对应的 value（用于直接访问）
+        if (!(key in map)) {
+          map[key] = v.value || ''
+        }
+      }
+    })
+    
+    // 附加原始数组，用于标签筛选和索引访问
+    map._raw = globalVars
+    return map
+  }
+
+  /**
+   * 获取所有已使用的标签（用于筛选和自动补全）
+   * @param {Array} globalVars - 可选：直接传入全局变量数组（用于实时获取，不依赖 this.config）
+   * @returns {Array} 排序后的标签数组
+   */
+  getAllTags(globalVars) {
+    // 如果没有传入参数，从 config 中获取
+    const vars = globalVars || this.getGlobalVars()
+    const tagsSet = new Set()
+    vars.forEach((v) => {
+      if (v.tags && Array.isArray(v.tags)) {
+        v.tags.forEach((tag) => tagsSet.add(tag))
+      }
+    })
+    return Array.from(tagsSet).sort()
+  }
+
+  /**
    * 获取指定标签页
    */
   getTab(tabIndex) {

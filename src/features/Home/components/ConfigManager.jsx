@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons'
 import WorkflowEditor from './WorkflowEditor'
 import EnvVarEditor from './EnvVarEditor'
+import GlobalVarEditor from './GlobalVarEditor'
 import { configService } from '../../../services'
 import { getWorkflowDisplayText } from '../workflow/workflowDisplay'
 import {
@@ -40,18 +41,20 @@ export default function ConfigManager({ config, onClose }) {
   const [editingTabName, setEditingTabName] = useState(null)
   const [expandedFolders, setExpandedFolders] = useState([])
   const [envVars, setEnvVars] = useState(config.envVars || [])
+  const [globalVars, setGlobalVars] = useState(config.globalVars || [])
   const [activeKey, setActiveKey] = useState('tabs')
 
-  // 实时保存：tabs 或 envVars 变化时立刻持久化
+  // 实时保存：tabs、envVars 或 globalVars 变化时立刻持久化
   useEffect(() => {
-    const newConfig = { ...config, tabs, envVars }
+    const newConfig = { ...config, tabs, envVars, globalVars }
     configService.saveConfig(newConfig)
-  }, [tabs, envVars])
+  }, [tabs, envVars, globalVars])
 
   const handleReset = () => {
     const defaultConfig = configService.resetConfig()
     setTabs(defaultConfig.tabs || [])
     setEnvVars(defaultConfig.envVars || [])
+    setGlobalVars(defaultConfig.globalVars || [])
     setCurrentTabIndex(0)
   }
 
@@ -532,6 +535,17 @@ export default function ConfigManager({ config, onClose }) {
               key: 'env',
               label: <Space>环境变量</Space>,
               children: <EnvVarEditor envVars={envVars} onChange={setEnvVars} />
+            },
+            {
+              key: 'globalvars',
+              label: <Space>全局变量</Space>,
+              children: (
+                <GlobalVarEditor
+                  globalVars={globalVars}
+                  allTags={configService.getAllTags(globalVars)}
+                  onChange={setGlobalVars}
+                />
+              )
             }
           ]}
         />

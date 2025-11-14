@@ -116,6 +116,24 @@ function getEnvVarsKey() {
 }
 
 /**
+ * 获取全局变量主索引的存储键（平台相关）
+ * 例如：globalvars_win32, globalvars_darwin, globalvars_linux
+ * 存储结构：{ ids: ['gvar1', 'gvar2', ...] }
+ */
+function getGlobalVarsKey() {
+  const platform = getPlatform()
+  return `globalvars_${platform}`
+}
+
+/**
+ * 获取单个全局变量的存储键
+ * 例如：globalvar/gvar_example
+ */
+function getGlobalVarKey(globalVarId) {
+  return `globalvar/${globalVarId}`
+}
+
+/**
  * 获取单个工作流的存储键
  * 例如：workflow/demo-open-home
  */
@@ -160,6 +178,131 @@ function setEnvVars(envVars) {
  */
 function removeEnvVars() {
   storageCore.settings.remove(getEnvVarsKey())
+}
+
+// ==================== 全局变量存储 ====================
+
+/**
+ * 读取单个全局变量
+ * @param {string} globalVarId - 全局变量 ID
+ * @returns {Object|null} 全局变量对象或 null
+ */
+function getGlobalVar(globalVarId) {
+  return storageCore.settings.get(getGlobalVarKey(globalVarId))
+}
+
+/**
+ * 保存单个全局变量
+ * @param {Object} globalVar - 全局变量对象（必须包含 id 字段）
+ */
+function setGlobalVar(globalVar) {
+  if (!globalVar || !globalVar.id) {
+    throw new Error('globalVar 必须包含 id')
+  }
+  storageCore.settings.set(getGlobalVarKey(globalVar.id), globalVar)
+}
+
+/**
+ * 删除单个全局变量
+ * @param {string} globalVarId - 全局变量 ID
+ */
+function removeGlobalVar(globalVarId) {
+  storageCore.settings.remove(getGlobalVarKey(globalVarId))
+}
+
+/**
+ * 读取全局变量主索引
+ * @returns {Object|null} 返回 { ids: [...] } 或 null（如果不存在）
+ */
+function getGlobalVarsIndex() {
+  const key = getGlobalVarsKey()
+  const data = storageCore.settings.get(key)
+  console.log(`[Storage] getGlobalVarsIndex from key "${key}":`, data)
+  return data
+}
+
+/**
+ * 保存全局变量主索引
+ * @param {Array} ids - 全局变量 ID 数组
+ */
+function setGlobalVarsIndex(ids) {
+  const key = getGlobalVarsKey()
+  const data = { ids } // 只保存 ID 数组
+  console.log(`[Storage] setGlobalVarsIndex to key "${key}":`, data)
+  storageCore.settings.set(key, data)
+}
+
+/**
+ * 删除全局变量主索引
+ */
+function removeGlobalVarsIndex() {
+  storageCore.settings.remove(getGlobalVarsKey())
+}
+
+/**
+ * 加载完整的全局变量数组（根据主索引组装）
+ * @returns {Array} 全局变量对象数组
+ */
+function getGlobalVars() {
+  const index = getGlobalVarsIndex()
+  if (!index || !Array.isArray(index.ids)) {
+    console.log('[Storage] 全局变量索引不存在或为空')
+    return []
+  }
+
+  const globalVars = []
+  for (const id of index.ids) {
+    const gvar = getGlobalVar(id)
+    if (gvar) {
+      globalVars.push(gvar)
+    } else {
+      console.warn(`[Storage] 找不到全局变量: ${id}`)
+    }
+  }
+
+  console.log(`[Storage] 加载了 ${globalVars.length} 个全局变量`)
+  return globalVars
+}
+
+/**
+ * 保存完整的全局变量数组（拆分保存 + 更新索引）
+ * @param {Array} globalVars - 全局变量对象数组
+ */
+function setGlobalVars(globalVars) {
+  if (!Array.isArray(globalVars)) {
+    console.warn('[Storage] setGlobalVars: globalVars 不是数组', globalVars)
+    return
+  }
+
+  // 1. 保存每个全局变量到独立存储键
+  const ids = []
+  for (const gvar of globalVars) {
+    if (gvar && gvar.id) {
+      setGlobalVar(gvar)
+      ids.push(gvar.id)
+    } else {
+      console.warn('[Storage] setGlobalVars: 全局变量缺少 id', gvar)
+    }
+  }
+
+  // 2. 保存主索引（只包含 ID 数组）
+  setGlobalVarsIndex(ids)
+  console.log(`[Storage] 保存了 ${ids.length} 个全局变量`)
+}
+
+/**
+ * 删除所有全局变量配置
+ */
+function removeGlobalVars() {
+  const index = getGlobalVarsIndex()
+  if (index && Array.isArray(index.ids)) {
+    // 删除所有单个全局变量
+    for (const id of index.ids) {
+      removeGlobalVar(id)
+    }
+  }
+  // 删除主索引
+  removeGlobalVarsIndex()
 }
 
 // ==================== 工作流/文件夹存储 ====================
@@ -305,6 +448,30 @@ function loadFullConfig() {
   const envVarsData = getEnvVars()
   mainConfig.envVars = envVarsData?.envVars || [] // 解包 { envVars: [...] }
   console.log('[Storage] 环境变量已加载', mainConfig.envVars.length, '个')
+
+  // ========== 步骤 3.5: 加载全局变量 ==========
+  // 尝试新格式（拆分存储）
+  let globalVarsArray = getGlobalVars() // 已经返回数组
+  
+  // 检查是否需要从旧格式迁移
+  if (globalVarsArray.length === 0) {
+    const oldGlobalVarsData = storageCore.settings.get(getGlobalVarsKey())
+    // 旧格式：{ globalVars: [...] }
+    // 新格式：{ ids: [...] }
+    if (oldGlobalVarsData && Array.isArray(oldGlobalVarsData.globalVars)) {
+      console.log('[Storage] 检测到旧格式全局变量，执行迁移...')
+      console.log('[Storage] 旧格式全局变量数量:', oldGlobalVarsData.globalVars.length)
+      
+      // 执行迁移：调用 setGlobalVars 会自动拆分保存
+      setGlobalVars(oldGlobalVarsData.globalVars)
+      globalVarsArray = oldGlobalVarsData.globalVars // 使用旧数据填充
+      
+      console.log('[Storage] 全局变量迁移完成')
+    }
+  }
+  
+  mainConfig.globalVars = globalVarsArray
+  console.log('[Storage] 全局变量已加载', mainConfig.globalVars.length, '个')
 
   // ========== 步骤 4: 递归加载所有 tab 的 items ==========
   if (mainConfig.tabs && Array.isArray(mainConfig.tabs)) {
@@ -508,6 +675,29 @@ function saveFullConfig(config) {
         console.log('[Storage] 垃圾清理：将删除不再引用的项目', toDelete)
         removeItems(toDelete) // 递归删除（包括 folder 的子项）
       }
+
+      // ---------- 清理全局变量 ----------
+      const prevGlobalVarsIndex = getGlobalVarsIndex()
+      if (prevGlobalVarsIndex && Array.isArray(prevGlobalVarsIndex.ids)) {
+        const prevGlobalVarIds = new Set(prevGlobalVarsIndex.ids)
+        const nextGlobalVarIds = new Set(
+          (config.globalVars || []).map(gvar => gvar.id).filter(Boolean)
+        )
+
+        const toDeleteGlobalVars = []
+        for (const id of prevGlobalVarIds) {
+          if (!nextGlobalVarIds.has(id)) {
+            toDeleteGlobalVars.push(id)
+          }
+        }
+
+        if (toDeleteGlobalVars.length) {
+          console.log('[Storage] 垃圾清理：将删除不再引用的全局变量', toDeleteGlobalVars)
+          for (const id of toDeleteGlobalVars) {
+            removeGlobalVar(id)
+          }
+        }
+      }
     }
   } catch (e) {
     // 垃圾清理失败不应该阻止保存流程，记录错误后继续
@@ -518,6 +708,12 @@ function saveFullConfig(config) {
   if (config.envVars) {
     setEnvVars(config.envVars)
     console.log('[Storage] 环境变量已保存', config.envVars.length)
+  }
+
+  // ========== 步骤 1.5: 保存全局变量 ==========
+  if (config.globalVars) {
+    setGlobalVars(config.globalVars)
+    console.log('[Storage] 全局变量已保存', config.globalVars.length)
   }
 
   // ========== 步骤 2: 递归保存所有 workflow 和 folder ==========
@@ -617,7 +813,10 @@ function removeFullConfig() {
   // 2. 删除环境变量
   removeEnvVars()
 
-  // 3. 删除主配置
+  // 3. 删除全局变量
+  removeGlobalVars()
+
+  // 4. 删除主配置
   remove()
 }
 
@@ -681,6 +880,8 @@ module.exports = {
   // ---------- 存储键生成器 ----------
   getConfigKey,      // 主配置键
   getEnvVarsKey,     // 环境变量键
+  getGlobalVarsKey,  // 全局变量主索引键
+  getGlobalVarKey,   // 单个全局变量键
   getWorkflowKey,    // 单个工作流键
   getFolderKey,      // 单个文件夹键
   
@@ -693,6 +894,19 @@ module.exports = {
   getEnvVars,        // 读取环境变量
   setEnvVars,        // 保存环境变量
   removeEnvVars,     // 删除环境变量
+  
+  // ---------- 全局变量 CRUD ----------
+  getGlobalVarsIndex,  // 读取全局变量主索引
+  setGlobalVarsIndex,  // 保存全局变量主索引
+  removeGlobalVarsIndex, // 删除全局变量主索引
+  
+  getGlobalVar,      // 读取单个全局变量
+  setGlobalVar,      // 保存单个全局变量
+  removeGlobalVar,   // 删除单个全局变量
+  
+  getGlobalVars,     // 读取全局变量（组装）
+  setGlobalVars,     // 保存全局变量（拆分）
+  removeGlobalVars,  // 删除全局变量（递归清理）
   
   // ---------- 单个实体 CRUD（底层接口，直接调用不会触发垃圾回收）----------
   getWorkflow,       // 读取单个工作流

@@ -25,7 +25,8 @@ import { WorkflowCancelError, isCancelError } from './errors'
 export async function runComposedWorkflow(workflow, trigger = {}, options = {}) {
   const { onEvent, signal } = options
   const env = configService.getEnabledEnvVars()
-  const context = createExecutionContext(workflow, trigger, env)
+  const vars = configService.getGlobalVarsMap()
+  const context = createExecutionContext(workflow, trigger, env, vars)
 
   const emitEvent = (type, data) => {
     if (typeof onEvent === 'function') {
