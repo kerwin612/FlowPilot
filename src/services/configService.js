@@ -233,8 +233,17 @@ class ConfigService {
    * 获取启用的环境变量（用于执行时注入）
    */
   getEnabledEnvVars() {
-    return this.envVars
-      .filter((v) => v.enabled && v.name && v.name.trim())
+    const envVars = this.getEnvVars()
+    const currentDeviceId = typeof window !== 'undefined' && window.services?.getNativeId ? window.services.getNativeId() : null
+    return envVars
+      .filter((v) => {
+        // 必须启用且有变量名
+        if (!v.enabled || !v.name || !v.name.trim()) return false
+        // 如果没有设备限制，全局生效
+        if (!v.deviceId) return true
+        // 如果有设备限制，只返回本机的
+        return v.deviceId === currentDeviceId
+      })
       .reduce((acc, v) => {
         acc[v.name.trim()] = v.value || ''
         return acc

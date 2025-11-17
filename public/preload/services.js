@@ -14,6 +14,7 @@ window.services = {
   selectPath: systemService.selectPath,
   redirect: systemService.redirect,
   showNotification: systemService.showNotification,
+  getNativeId: systemService.getNativeId,
 
   workflow: {
     // 初始化和重置

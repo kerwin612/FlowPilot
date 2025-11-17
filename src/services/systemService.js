@@ -78,6 +78,14 @@ class SystemService {
     return null
   }
 
+  // 获取设备唯一标识
+  getNativeId() {
+    if (typeof window !== 'undefined' && window.services?.getNativeId) {
+      return window.services.getNativeId()
+    }
+    return null
+  }
+
   // ==================== 文件系统 ====================
 
   /**

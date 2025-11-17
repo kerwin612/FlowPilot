@@ -11,7 +11,8 @@ import {
   message,
   Typography,
   Tooltip,
-  Alert
+  Alert,
+  Tag
 } from 'antd'
 import {
   PlusOutlined,
@@ -22,12 +23,16 @@ import {
   CopyOutlined,
   DownOutlined,
   UpOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  LaptopOutlined
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
+import systemService from '../../../services/systemService'
+
 export default function EnvVarEditor({ envVars = [], onChange }) {
+  const deviceId = systemService.getNativeId();
   const [editingKey, setEditingKey] = useState('')
   const [editingName, setEditingName] = useState('')
   const [editingValue, setEditingValue] = useState('')
@@ -39,7 +44,9 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       id: `env_${Date.now()}`,
       name: '',
       value: '',
-      enabled: true
+      enabled: true,
+      deviceId: null,
+      deviceName: null
     }
     onChange([...envVars, newVar])
     setEditingKey(newVar.id)
@@ -64,12 +71,7 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       return
     }
 
-    // 检查是否有重名（排除自己）
-    const duplicate = envVars.find((v) => v.id !== id && v.name === editingName.trim())
-    if (duplicate) {
-      message.error('变量名已存在')
-      return
-    }
+    // 移除了 key 唯一性校验，允许多个同名变量（不同 deviceId）
 
     onChange(
       envVars.map((v) =>
@@ -124,40 +126,90 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       dataIndex: 'enabled',
       key: 'enabled',
       width: 60,
-      render: (enabled, record) => (
-        <Switch
-          checked={enabled}
-          size="small"
-          onChange={(checked) => handleToggle(record.id, checked)}
-        />
-      )
+      render: (enabled, record) => {
+        const isOtherDevice = record.deviceId && record.deviceId !== deviceId
+        return (
+          <Switch
+            checked={enabled}
+            size="small"
+            disabled={isOtherDevice}
+            onChange={(checked) => handleToggle(record.id, checked)}
+          />
+        )
+      }
     },
     {
       title: '变量名',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
+      width: 180,
       render: (text, record) => {
+        const isOtherDevice = record.deviceId && record.deviceId !== deviceId
         if (editingKey === record.id) {
           return (
-            <Input
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              placeholder="例如：NODE_ENV"
-              autoFocus
-              onPressEnter={() => handleSave(record.id)}
-            />
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Input
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder="例如：NODE_ENV"
+                autoFocus
+                onPressEnter={() => handleSave(record.id)}
+              />
+              <Space size={8} align="center">
+                <Switch
+                  checked={!!record.deviceId}
+                  size="small"
+                  onChange={(checked) => {
+                    onChange(
+                      envVars.map((v) =>
+                        v.id === record.id
+                          ? {
+                              ...v,
+                              deviceId: checked ? deviceId : null
+                            }
+                          : v
+                      )
+                    )
+                  }}
+                />
+                <Text type="secondary" style={{ fontSize: 12, userSelect: 'none' }}>
+                  仅本机生效
+                </Text>
+              </Space>
+            </Space>
           )
         }
         return (
-          <Text
-            style={{
-              color: record.enabled ? 'inherit' : 'var(--color-text-disabled)',
-              fontFamily: 'monospace'
-            }}
-          >
-            {text || <Text type="secondary">未设置</Text>}
-          </Text>
+          <Space size={8} align="center" wrap={false}>
+            <Text
+              style={{
+                color: record.enabled ? 'inherit' : 'var(--color-text-disabled)',
+                fontFamily: 'monospace'
+              }}
+            >
+              {text || <Text type="secondary">未设置</Text>}
+            </Text>
+            {record.deviceId && (
+              <Tooltip title={isOtherDevice ? `该变量仅在 ${record.deviceName || '其他设备'} 生效` : '仅本机生效'}>
+                <Tag
+                  icon={<LaptopOutlined style={{ fontSize: 10 }} />}
+                  color={isOtherDevice ? 'default' : 'blue'}
+                  style={{ 
+                    fontSize: 11, 
+                    margin: 0,
+                    padding: '0 6px',
+                    lineHeight: '20px',
+                    height: '20px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {isOtherDevice ? record.deviceName || '其他设备' : '本机'}
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
         )
       }
     },
@@ -246,6 +298,7 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       key: 'actions',
       width: 150,
       render: (_, record) => {
+        const isOtherDevice = record.deviceId && record.deviceId !== deviceId
         if (editingKey === record.id) {
           return (
             <Space size="small">
@@ -269,26 +322,33 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         }
         return (
           <Space size="small">
-            <Button
-              type="text"
-              size="small"
-              title="编辑"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            ></Button>
+            <Tooltip title={isOtherDevice ? '其他设备的配置无法编辑' : '编辑'}>
+              <Button
+                type="text"
+                size="small"
+                title="编辑"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+                disabled={isOtherDevice}
+              ></Button>
+            </Tooltip>
             <Popconfirm
               title="确定删除？"
               onConfirm={() => handleDelete(record.id)}
               okText="确定"
               cancelText="取消"
+              disabled={isOtherDevice}
             >
-              <Button
-                type="text"
-                size="small"
-                title="删除"
-                danger
-                icon={<DeleteOutlined />}
-              ></Button>
+              <Tooltip title={isOtherDevice ? '其他设备的配置无法删除' : '删除'}>
+                <Button
+                  type="text"
+                  size="small"
+                  title="删除"
+                  danger
+                  icon={<DeleteOutlined />}
+                  disabled={isOtherDevice}
+                ></Button>
+              </Tooltip>
             </Popconfirm>
           </Space>
         )
@@ -302,7 +362,12 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space direction="vertical" size={0}>
             <Title level={5} style={{ margin: 0 }}>
-              全局环境变量
+              <Space size={8}>
+                <span>全局环境变量</span>
+                <Tooltip title={`当前设备 ID: ${deviceId}`}>
+                  <Tag>{deviceId.substring(0, 8)}</Tag>
+                </Tooltip>
+              </Space>
             </Title>
             <Text type="secondary" style={{ fontSize: 12 }}>
               这些环境变量将在所有快捷指令执行前注入，已禁用的变量不会生效
@@ -330,6 +395,9 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
               <li>
                 <strong>引用自己：</strong> 使用 <code>PATH=%PATH%;新路径</code> 可以追加到现有 PATH
                 末尾
+              </li>
+              <li>
+                <strong>仅本机生效：</strong> 开启后，该变量仅在当前设备生效，不会同步到其他机器；适用于多机器使用且配置不同的场景
               </li>
             </ul>
           </div>

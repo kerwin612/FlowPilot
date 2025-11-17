@@ -89,5 +89,11 @@ module.exports = {
       console.error('redirect 调用失败:', err)
       return false
     }
+  },
+  getNativeId() {
+    if (typeof window !== 'undefined' && window.utools && typeof window.utools.getNativeId === 'function') {
+      return window.utools.getNativeId()
+    }
+    return null
   }
 }
