@@ -327,23 +327,20 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
 
         {allTags.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <Space size={4} wrap>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+            <Space size={8} wrap>
+              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                 筛选标签：
               </Text>
-              {allTags.map((tag) => (
-                <Tag.CheckableTag
-                  key={tag}
-                  checked={filterTags.includes(tag)}
-                  onChange={(checked) => {
-                    setFilterTags(
-                      checked ? [...filterTags, tag] : filterTags.filter((t) => t !== tag)
-                    )
-                  }}
-                >
-                  {tag}
-                </Tag.CheckableTag>
-              ))}
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="选择标签进行筛选"
+                value={filterTags}
+                onChange={setFilterTags}
+                options={allTags.map((tag) => ({ value: tag, label: tag }))}
+                maxTagCount="responsive"
+                style={{ minWidth: 220, width: '100%', maxWidth: 520 }}
+              />
               {filterTags.length > 0 && (
                 <Button size="small" type="link" onClick={() => setFilterTags([])}>
                   清空筛选

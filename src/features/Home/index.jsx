@@ -133,28 +133,29 @@ export default function Home({ enterAction: _enterAction }) {
   return (
     <Layout style={{ minHeight: '100vh', padding: '0px 16px 16px 16px' }}>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {/* 顶部导航 */}
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          {tabItems.length > 0 && (
-            <Tabs
-              activeKey={activeTabKey}
-              onChange={(k) => {
-                setActiveTabKey(k)
-                if (k !== 'search') {
-                  switchTab(Number(k))
-                }
-              }}
-              items={tabItems}
-              style={{ flex: 1 }}
-            />
-          )}
-          <Button
-            type="text"
-            title="配置管理"
-            icon={<SettingOutlined />}
-            onClick={() => setShowConfigManager(true)}
-          ></Button>
-        </Space>
+        {/* 顶部导航：将配置按钮放入 Tabs 的 tabBarExtraContent，避免被挤压并启用溢出 ... */}
+        {tabItems.length > 0 && (
+          <Tabs
+            activeKey={activeTabKey}
+            onChange={(k) => {
+              setActiveTabKey(k)
+              if (k !== 'search') {
+                switchTab(Number(k))
+              }
+            }}
+            items={tabItems}
+            tabBarExtraContent={{
+              right: (
+                <Button
+                  type="text"
+                  title="配置管理"
+                  icon={<SettingOutlined />}
+                  onClick={() => setShowConfigManager(true)}
+                />
+              )
+            }}
+          />
+        )}
 
         {/* 内容区域 */}
         {displayItems.length > 0 ? (
