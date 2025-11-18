@@ -322,14 +322,13 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         }
         return (
           <Space size="small">
-            <Tooltip title={isOtherDevice ? '其他设备的配置无法编辑' : '编辑'}>
+            <Tooltip title={isOtherDevice ? '其他设备的配置谨慎编辑' : '编辑'}>
               <Button
                 type="text"
                 size="small"
                 title="编辑"
                 icon={<EditOutlined />}
                 onClick={() => handleEdit(record)}
-                disabled={isOtherDevice}
               ></Button>
             </Tooltip>
             <Popconfirm
@@ -339,14 +338,13 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
               cancelText="取消"
               disabled={isOtherDevice}
             >
-              <Tooltip title={isOtherDevice ? '其他设备的配置无法删除' : '删除'}>
+              <Tooltip title={isOtherDevice ? '其他设备的配置谨慎删除' : '删除'}>
                 <Button
                   type="text"
                   size="small"
                   title="删除"
                   danger
                   icon={<DeleteOutlined />}
-                  disabled={isOtherDevice}
                 ></Button>
               </Tooltip>
             </Popconfirm>
