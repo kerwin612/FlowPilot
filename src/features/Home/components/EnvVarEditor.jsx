@@ -147,7 +147,7 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         const isOtherDevice = record.deviceId && record.deviceId !== deviceId
         if (editingKey === record.id) {
           return (
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space direction="vertical" size={0} style={{ width: '100%' }}>
               <Input
                 value={editingName}
                 onChange={(e) => setEditingName(e.target.value)}
