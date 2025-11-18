@@ -10,14 +10,14 @@ import {
   Empty,
   Popconfirm,
   Tag,
-  Typography
+  Typography,
+  Select
 } from 'antd'
 import {
   PlusOutlined,
   DeleteOutlined,
   FolderOutlined,
   EditOutlined,
-  ReloadOutlined,
   RightOutlined,
   DownOutlined,
   ThunderboltOutlined
@@ -43,14 +43,27 @@ export default function ConfigManager({ config, onClose }) {
   const [envVars, setEnvVars] = useState(configService.getEnvVars())
   const [globalVars, setGlobalVars] = useState(configService.getGlobalVars())
   const [activeKey, setActiveKey] = useState('tabs')
+  const [profiles, setProfiles] = useState(configService.getProfiles())
+  const [activeProfileId, setActiveProfileId] = useState(configService.getActiveProfileId())
 
-  const handleReset = () => {
-    configService.resetAll()
-    setTabs(configService.getTabs())
-    setEnvVars(configService.getEnvVars())
-    setGlobalVars(configService.getGlobalVars())
-    setCurrentTabIndex(0)
-  }
+  useEffect(() => {
+    try {
+      const data = configService.loadAll()
+      setTabs(data.tabs)
+      setEnvVars(data.envVars)
+      setGlobalVars(data.globalVars)
+      setProfiles(data.profiles?.profiles || [])
+      setActiveProfileId(configService.getActiveProfileId())
+    } catch { }
+    const unsubscribe = configService.subscribe(({ tabs, envVars, globalVars, profiles, activeProfileId }) => {
+      setTabs(tabs)
+      setEnvVars(envVars)
+      setGlobalVars(globalVars)
+      setProfiles(profiles?.profiles || [])
+      setActiveProfileId(activeProfileId)
+    })
+    return unsubscribe
+  }, [])
 
   // 标签页操作
   const addTab = () => {
@@ -75,7 +88,7 @@ export default function ConfigManager({ config, onClose }) {
       setEditingTabName(null)
       return
     }
-    
+
     configService.updateTab(index, { name: trimmedName })
     setTabs(configService.getTabs())
     setEditingTabName(null)
@@ -363,10 +376,10 @@ export default function ConfigManager({ config, onClose }) {
                   { ...item, _isFolder: true },
                   ...(folderExpanded && item.items
                     ? item.items.map((subItem) => ({
-                        ...subItem,
-                        _isSubItem: true,
-                        _parentId: item.id
-                      }))
+                      ...subItem,
+                      _isSubItem: true,
+                      _parentId: item.id
+                    }))
                     : [])
                 ]
               }
@@ -478,16 +491,36 @@ export default function ConfigManager({ config, onClose }) {
           activeKey={activeKey}
           onChange={setActiveKey}
           tabBarExtraContent={
-            <Popconfirm
-              title="确定重置配置吗？"
-              description="这将清空所有自定义配置并恢复默认设置"
-              onConfirm={handleReset}
-              okText="确定重置"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger icon={<ReloadOutlined />} title="重置配置"></Button>
-            </Popconfirm>
+            <Space size={8}>
+              <Select
+                value={activeProfileId || undefined}
+                placeholder="选择配置档 (Profile)"
+                style={{ width: 200 }}
+                options={(profiles || []).map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(val) => configService.setActiveProfile(val)}
+              />
+              {profiles?.length > 1 && activeProfileId && activeProfileId !== 'default' && (
+                <Popconfirm
+                  title="确定删除当前配置档？"
+                  description="删除后与其关联的工作流/变量也将移除"
+                  onConfirm={() => {
+                    configService.deleteProfile(activeProfileId)
+                  }}
+                  okText="删除"
+                  cancelText="取消"
+                >
+                  <Button danger icon={<DeleteOutlined />} title="删除当前配置档" />
+                </Popconfirm>
+              )}
+              <Button
+                icon={<PlusOutlined />}
+                title="新增配置档"
+                onClick={async () => {
+                  const p = await configService.addProfile(null)
+                  configService.setActiveProfile(p.id)
+                }}
+              />
+            </Space>
           }
           items={[
             {

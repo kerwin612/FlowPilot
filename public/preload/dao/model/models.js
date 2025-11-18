@@ -116,6 +116,15 @@ class GlobalVar {
   }
 }
 
+class Profile {
+  constructor(id, name) {
+    this.id = id
+    this.name = name
+    this.createdAt = Date.now()
+    this.updatedAt = Date.now()
+  }
+}
+
 module.exports = {
   CURRENT_VERSION,
   WorkflowMode,
@@ -129,5 +138,6 @@ module.exports = {
   Workflow,
   Folder,
   EnvVar,
-  GlobalVar
+  GlobalVar,
+  Profile
 }

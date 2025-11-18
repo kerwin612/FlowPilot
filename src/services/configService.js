@@ -16,6 +16,8 @@
 class ConfigService {
   constructor() {
     // 本地缓存
+    this.profiles = []  // 配置文件列表
+    this.activeProfileId = null  // 当前激活的配置文件ID
     this.config = null  // 主配置（版本、平台、tabs引用）
     this.tabs = []
     this.envVars = []
@@ -29,6 +31,8 @@ class ConfigService {
    */
   loadAll() {
     try {
+      this.profiles = window.services.workflow.getProfiles()
+      this.activeProfileId = window.services.workflow.getActiveProfileId()
       this.config = window.services.workflow.getConfig()
       this.tabs = window.services.workflow.getTabs()
       this.envVars = window.services.workflow.getEnvVars()
@@ -37,6 +41,8 @@ class ConfigService {
       this.notifyListeners()
       
       return {
+        profiles: this.profiles,
+        activeProfileId: this.activeProfileId,
         config: this.config,
         tabs: this.tabs,
         envVars: this.envVars,
@@ -54,6 +60,35 @@ class ConfigService {
   resetAll() {
     window.services.workflow.resetAll()
     return this.loadAll()
+  }
+
+  getProfiles() {
+    return this.profiles?.profiles || []
+  }
+
+  getActiveProfileId () {
+    return this.activeProfileId
+  }
+
+  addProfile(name) {
+    const newProfile = window.services.workflow.addProfile(name)
+    this.profiles = window.services.workflow.getProfiles()
+    this.notifyListeners()
+    return newProfile
+  }
+
+  setActiveProfile(profileId) {
+    window.services.workflow.setActiveProfile(profileId)
+    this.activeProfileId = window.services.workflow.getActiveProfileId()
+    this.loadAll()  // 切换配置档后重新加载所有配置
+  }
+
+  deleteProfile(profileId) {
+    const ok = window.services.workflow.deleteProfile(profileId)
+    this.profiles = window.services.workflow.getProfiles()
+    this.activeProfileId = window.services.workflow.getActiveProfileId()
+    this.loadAll()
+    return ok
   }
 
   /**
@@ -400,6 +435,8 @@ class ConfigService {
    */
   notifyListeners() {
     this.listeners.forEach((listener) => listener({
+      profiles: this.profiles,
+      activeProfileId: this.activeProfileId,
       config: this.config,
       tabs: this.tabs,
       envVars: this.envVars,

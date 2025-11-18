@@ -21,7 +21,7 @@ const command = require('../../core/command.js')
 const getPlatform = require('../platform.js')
 const defaults = require('./defaults.js')
 const { getDAO } = require('../../dao')
-const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar } = require('../../dao/model/models')
+const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar, Profile } = require('../../dao/model/models')
 
 // ==================== 初始化和重置 ====================
 
@@ -100,6 +100,81 @@ function resetAll() {
     console.error('[Workflow Service] 配置重置失败:', error)
     throw error
   }
+}
+
+function _ensureProfileInitialized() {
+  const dao = getDAO()
+  const deviceId = (typeof window !== 'undefined' && window.utools && typeof window.utools.getNativeId === 'function') ? window.utools.getNativeId() : null
+  const meta = dao.getProfiles()
+  const map = dao.getDeviceProfileMap()
+  let activeProfileId = map[deviceId] || null
+
+  if (!meta.profiles || meta.profiles.length === 0) {
+    const p = new Profile('default', '默认配置')
+    meta.profiles = [p]
+    dao.saveProfiles(meta.profiles)
+    activeProfileId = p.id
+    dao.setProfileScope(activeProfileId)
+    dao.migrateRootToCurrentScope()
+    if (deviceId) dao.setDeviceProfile(deviceId, activeProfileId)
+  } else {
+    const exists = meta.profiles.find(p => p.id === activeProfileId)
+    if (!exists) {
+      activeProfileId = meta.profiles[0]?.id || null
+      if (activeProfileId) {
+        dao.setProfileScope(activeProfileId)
+        if (deviceId) dao.setDeviceProfile(deviceId, activeProfileId)
+      }
+    } else {
+      dao.setProfileScope(activeProfileId)
+    }
+  }
+
+  return { meta, deviceId, activeProfileId }
+}
+
+function getProfiles() {
+  const dao = getDAO()
+  const { meta } = _ensureProfileInitialized()
+  return meta
+}
+
+function getActiveProfileId() {
+  const { activeProfileId } = _ensureProfileInitialized()
+  return activeProfileId
+}
+
+function addProfile(name) {
+  const dao = getDAO()
+  const { meta, deviceId } = _ensureProfileInitialized()
+  const p = new Profile(`${Date.now()}`, name || `配置档_${(meta.profiles?.length || 0)}`)
+  meta.profiles = [...(meta.profiles || []), p]
+  dao.saveProfiles(meta.profiles)
+  try { dao.cloneCurrentScopeToProfile(p.id) } catch {}
+  return p
+}
+
+function setActiveProfile(profileId) {
+  const dao = getDAO()
+  const { meta, deviceId } = _ensureProfileInitialized()
+  const exists = (meta.profiles || []).find(p => p.id === profileId)
+  if (!exists) return null
+  if (deviceId) dao.setDeviceProfile(deviceId, profileId)
+  dao.setProfileScope(profileId)
+  return profileId
+}
+
+function deleteProfile(profileId) {
+  const dao = getDAO()
+  const { deviceId } = _ensureProfileInitialized()
+  const ok = dao.deleteProfile(profileId)
+  if (ok) {
+    const meta = dao.getProfiles()
+    const newActive = meta.profiles[0]?.id || null
+    if (deviceId && newActive) dao.setDeviceProfile(deviceId, newActive)
+    if (newActive) dao.setProfileScope(newActive)
+  }
+  return ok
 }
 
 // ==================== Config CRUD ====================
@@ -517,6 +592,12 @@ module.exports = {
   // 初始化和重置
   initDefault,
   resetAll,
+
+  getProfiles,
+  getActiveProfileId,
+  addProfile,
+  setActiveProfile,
+  deleteProfile,
   
   // Config
   getConfig,

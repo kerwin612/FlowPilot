@@ -6,10 +6,11 @@ class UToolsStorage extends IStorage {
     super()
     this.logger = new Logger('UToolsStorage')
     this.prefix = 'settings_'
+    this.scopePrefix = ''
   }
 
   _getFullKey(key) {
-    return `${this.prefix}${key}`
+    return `${this.prefix}${this.scopePrefix}${key}`
   }
 
   get(key) {
@@ -65,6 +66,17 @@ class UToolsStorage extends IStorage {
   clear(prefix = '') {
     this.logger.warn('clear() not supported by uTools dbStorage')
   }
+
+  setScope(scopeName) {
+    try {
+      const id = scopeName ? String(scopeName).replace(/^profile_/, '') : ''
+      this.scopePrefix = id ? `profile_${id}_` : ''
+      this.logger.info(`scope set to "${this.scopePrefix || 'root'}"`)
+    } catch (error) {
+      this.logger.error('setScope failed:', error)
+    }
+  }
+
 }
 
 module.exports = { UToolsStorage }

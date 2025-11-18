@@ -20,6 +20,12 @@ window.services = {
     // 初始化和重置
     initDefault: workflowsService.initDefault,
     resetAll: workflowsService.resetAll,
+
+    getProfiles: workflowsService.getProfiles,
+    getActiveProfileId: workflowsService.getActiveProfileId,
+    addProfile: workflowsService.addProfile,
+    setActiveProfile: workflowsService.setActiveProfile,
+    deleteProfile: workflowsService.deleteProfile,
     
     // Config
     getConfig: workflowsService.getConfig,
