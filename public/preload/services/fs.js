@@ -15,6 +15,20 @@ module.exports = {
     return filePath
   },
 
+  // Write text to specific path
+  writeTextFileAt(filePath, text) {
+    const dir = path.dirname(filePath)
+    try { fs.mkdirSync(dir, { recursive: true }) } catch (e) {}
+    try {
+      fs.writeFileSync(filePath, text, { encoding: 'utf-8' })
+      console.log('[fsService] writeTextFileAt ok', filePath)
+    } catch (err) {
+      console.error('[fsService] writeTextFileAt error', filePath, err)
+      throw err
+    }
+    return filePath
+  },
+
   // Write Base64 image data URL into Downloads directory and return filepath
   writeImageFile(base64Url) {
     const matchs = /^data:image\/([a-z]{1,20});base64,/i.exec(base64Url)

@@ -347,6 +347,204 @@ class ConfigService {
     return map
   }
 
+  exportWorkflow(workflowId) {
+    try {
+      const w = this.getAllWorkflows().find((it) => it.id === workflowId)
+      if (!w) return false
+      const refs = this._extractWorkflowRefs(w)
+      const payload = {
+        type: 'flowpilot/workflow-export',
+        version: '1',
+        workflow: w,
+        envVars: this.envVars.filter((v) => refs.env.has(v.name)),
+        globalVars: this.globalVars.filter((g) => refs.global.has(g.key))
+      }
+      return JSON.stringify(payload, null, 2)
+    } catch (e) {
+      console.error('[ConfigService] exportWorkflow error', e)
+      return ''
+    }
+  }
+
+  exportFolder(folderId) {
+    try {
+      const tabs = this.getTabs()
+      const tabContaining = tabs.find((t) => (t.items || []).some((it) => it.id === folderId))
+      const folder = tabContaining?.items?.find((it) => it.id === folderId && it.type === 'folder')
+      if (!folder) return false
+
+      const deepClone = (node) => {
+        if (!node) return null
+        if (node.type === 'workflow') return { ...node }
+        if (node.type === 'folder') {
+          return {
+            ...node,
+            items: (node.items || []).map(deepClone)
+          }
+        }
+        return null
+      }
+
+      const clonedFolder = deepClone(folder)
+      const envRefs = new Set()
+      const globalRefs = new Set()
+      const collectRefs = (n) => {
+        if (!n) return
+        if (Array.isArray(n)) { n.forEach(collectRefs); return }
+        if (n.type === 'workflow') {
+          const refs = this._extractWorkflowRefs(n)
+          refs.env.forEach((x) => envRefs.add(x))
+          refs.global.forEach((x) => globalRefs.add(x))
+          return
+        }
+        if (n.type === 'folder') { (n.items || []).forEach(collectRefs) }
+      }
+      collectRefs(clonedFolder)
+
+      const payload = {
+        type: 'flowpilot/folder-export',
+        version: '1',
+        folderId,
+        items: [clonedFolder],
+        envVars: this.envVars.filter((v) => envRefs.has(v.name)),
+        globalVars: this.globalVars.filter((g) => globalRefs.has(g.key))
+      }
+      return JSON.stringify(payload, null, 2)
+    } catch {
+      console.error('[ConfigService] exportFolder error')
+      return ''
+    }
+  }
+
+  exportToClipboard(text) {
+    const ok = window.services.writeClipboard(text)
+    return !!ok
+  }
+
+  exportToFile(text, filePath) {
+    try {
+      window.services.writeTextFileAt(filePath, text)
+      console.log('[ConfigService] exportWorkflowToFile ok')
+      return true
+    } catch (e) {
+      console.error('[ConfigService] exportWorkflowToFile error', e)
+      return false
+    }
+  }
+
+  async importWorkflowFromText(text, targetTabIndex = 0) {
+    try {
+      const data = JSON.parse(text)
+      if (!data || data.type !== 'flowpilot/workflow-export') return false
+      const existingEnvNames = new Set(this.envVars.map((v) => v.name))
+      const existingGlobalKeys = new Set(this.globalVars.map((g) => g.key))
+      const toAddEnv = (data.envVars || []).filter((v) => v && v.name && !existingEnvNames.has(v.name))
+      const toAddGlobal = (data.globalVars || []).filter((g) => g && g.key && !existingGlobalKeys.has(g.key))
+      if (toAddEnv.length) this.saveEnvVars([...this.envVars, ...toAddEnv])
+      if (toAddGlobal.length) this.saveGlobalVars([...this.globalVars, ...toAddGlobal])
+      const wf = { ...data.workflow }
+      const allIds = new Set(this.getAllWorkflows().map((x) => x.id))
+      if (!wf.id || allIds.has(wf.id)) wf.id = `workflow_${Date.now()}`
+      const tab = this.getTab(targetTabIndex) || { id: `tab_${Date.now()}`, name: '导入', items: [] }
+      if (!this.tabs.includes(tab)) {
+        this.addTab(tab.name)
+      }
+      this.addItem(targetTabIndex, wf)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  async importFolderFromText(text, targetTabIndex = 0) {
+    try {
+      const data = JSON.parse(text)
+      if (!data || data.type !== 'flowpilot/folder-export') return false
+
+      const tab = this.getTab(targetTabIndex)
+      const targetIndex = tab ? targetTabIndex : (this.tabs.length > 0 ? 0 : (this.addTab('导入'), 0))
+
+      const existingEnvNames = new Set(this.envVars.map((v) => v.name))
+      const existingGlobalKeys = new Set(this.globalVars.map((g) => g.key))
+      const toAddEnv = (data.envVars || []).filter((v) => v && v.name && !existingEnvNames.has(v.name))
+      const toAddGlobal = (data.globalVars || []).filter((g) => g && g.key && !existingGlobalKeys.has(g.key))
+      if (toAddEnv.length) this.saveEnvVars([...this.envVars, ...toAddEnv])
+      if (toAddGlobal.length) this.saveGlobalVars([...this.globalVars, ...toAddGlobal])
+
+      const flattenWorkflows = (items) => {
+        const out = []
+        const seen = new Set()
+        const walk = (node) => {
+          if (!node) return
+          if (Array.isArray(node)) { node.forEach(walk); return }
+          if (node.type === 'workflow') {
+            const id = node.id || ''
+            if (!seen.has(id)) {
+              seen.add(id)
+              out.push({ ...node })
+            }
+          }
+          else if (node.type === 'folder') { (node.items || []).forEach(walk) }
+        }
+        walk(items)
+        return out
+      }
+
+      const workflows = flattenWorkflows(data.items || [])
+      if (workflows.length === 0) return false
+
+      const newFolderId = `folder_${Date.now()}`
+      const newFolder = { id: newFolderId, type: 'folder', name: data.name || '导入的文件夹', items: [] }
+      const usedIds = new Set(this.getAllWorkflows().map((x) => x.id))
+      newFolder.items = workflows.map((wf) => {
+        const copied = { ...wf }
+        if (!copied.id || usedIds.has(copied.id)) copied.id = `workflow_${Date.now()}_${Math.floor(Math.random()*1000)}`
+        return copied
+      })
+
+      this.addItem(targetIndex, newFolder)
+      return true
+    } catch (e) {
+      console.error('[ConfigService] importFolderFromText error', e)
+      return false
+    }
+  }
+
+  async importAutoFromText(text, targetTabIndex = 0) {
+    try {
+      const data = JSON.parse(text)
+      if (data && data.type === 'flowpilot/workflow-export') {
+        return await this.importWorkflowFromText(text, targetTabIndex)
+      }
+      if (data && data.type === 'flowpilot/folder-export') {
+        return await this.importFolderFromText(text, targetTabIndex)
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
+  _extractWorkflowRefs(workflow) {
+    const env = new Set()
+    const global = new Set()
+    const addFromString = (s) => {
+      if (typeof s !== 'string') return
+      s.replace(/%([^%\s]+)%/g, (_, name) => { env.add(name); return '' })
+      s.replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (_, braced, simple) => { env.add(braced || simple); return '' })
+      s.replace(/\{\{\s*vars\.([A-Za-z0-9_]+)\s*\}\}/g, (_, key) => { global.add(key); return '' })
+    }
+    const scan = (obj) => {
+      if (!obj) return
+      if (typeof obj === 'string') { addFromString(obj); return }
+      if (Array.isArray(obj)) { obj.forEach(scan); return }
+      if (typeof obj === 'object') { Object.values(obj).forEach(scan); return }
+    }
+    scan(workflow)
+    Object.keys(workflow.env || {}).forEach((k) => env.add(k))
+    return { env, global }
+  }
+
   /**
    * 获取所有已使用的标签（用于筛选和自动补全）
    * @param {Array} globalVars - 可选：直接传入全局变量数组（用于实时获取，不依赖缓存）

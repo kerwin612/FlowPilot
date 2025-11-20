@@ -184,6 +184,11 @@ class SystemService {
     return false
   }
 
+  async readClipboard() {
+    const text = await (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve(''))
+    return text
+  }
+
   // ==================== 内置浏览器 ====================
 
   /**

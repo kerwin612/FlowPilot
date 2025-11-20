@@ -5,6 +5,7 @@ const workflowsService = require('./services/workflows/index.js')
 window.services = {
   readFile: fsService.readFile,
   writeTextFile: fsService.writeTextFile,
+  writeTextFileAt: fsService.writeTextFileAt,
   writeImageFile: fsService.writeImageFile,
 
   browser: systemService.browser,
