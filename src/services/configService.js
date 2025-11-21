@@ -161,6 +161,13 @@ class ConfigService {
     
     window.services.workflow.deleteTab(tab.id)
     this.tabs = window.services.workflow.getTabs()
+    try {
+      const items = Array.isArray(tab.items) ? tab.items : []
+      for (const it of items) {
+        const id = typeof it === 'string' ? it : it?.id
+        if (id) window.services.workflow.cleanupIfUnreferenced(id)
+      }
+    } catch {}
     this.notifyListeners()
   }
 
@@ -214,6 +221,7 @@ class ConfigService {
     tab.items = tab.items.filter((item) => item.id !== itemId)
     window.services.workflow.saveTab(tab)
     this.tabs = window.services.workflow.getTabs()
+    try { window.services.workflow.cleanupIfUnreferenced(itemId) } catch {}
     this.notifyListeners()
   }
 
@@ -311,19 +319,55 @@ class ConfigService {
   getEnabledEnvVars() {
     const envVars = this.getEnvVars()
     const currentDeviceId = typeof window !== 'undefined' && window.services?.getNativeId ? window.services.getNativeId() : null
-    return envVars
-      .filter((v) => {
-        // 必须启用且有变量名
-        if (!v.enabled || !v.name || !v.name.trim()) return false
-        // 如果没有设备限制，全局生效
-        if (!v.deviceId) return true
-        // 如果有设备限制，只返回本机的
-        return v.deviceId === currentDeviceId
-      })
-      .reduce((acc, v) => {
-        acc[v.name.trim()] = v.value || ''
-        return acc
-      }, {})
+    const filtered = envVars.filter((v) => {
+      if (!v.enabled || !v.name || !v.name.trim()) return false
+      if (!v.deviceId) return true
+      return v.deviceId === currentDeviceId
+    })
+
+    const acc = filtered.reduce((map, v) => {
+      map[v.name.trim()] = v.value || ''
+      return map
+    }, {})
+
+    const gvMap = this.getGlobalVarsMap() || {}
+    const ctx = { map: gvMap, raw: gvMap._raw || [] }
+    Object.keys(acc).forEach((k) => {
+      const val = acc[k]
+      if (typeof val === 'string') {
+        const map = ctx.map || {}
+        const raw = Array.isArray(ctx.raw) ? ctx.raw : []
+        let out = String(val)
+        out = out.replace(/\{\{\s*(?:vars|global)\.\s*([A-Za-z0-9_]+)\s*\}\}/g, (m, key) => {
+          const v = map[key]
+          return v != null ? String(v) : ''
+        })
+        out = out.replace(/\{\{\s*(?:vars|global)\[['"]([^'"]+)['"]((?:,\s*['"][^'"]+['"])*)\](?:\[(\d+)\]|\.([A-Z_][A-Z0-9_]*))?\s*\}\}/g,
+          (match, firstTag, otherTagsStr, indexStr, keyName) => {
+            const tags = [firstTag]
+            if (otherTagsStr) {
+              const m = otherTagsStr.matchAll(/['"]([^'"]+)['"]/g)
+              for (const t of m) tags.push(t[1])
+            }
+            const filtered = raw.filter((g) => Array.isArray(g.tags) && tags.every((tag) => g.tags.includes(tag)))
+            if (indexStr && indexStr.length) {
+              const i = Number(indexStr)
+              const item = filtered[i]
+              return item ? String(item.value || '') : ''
+            }
+            if (keyName && keyName.length) {
+              const item = filtered.find((g) => g.key === keyName)
+              return item ? String(item.value || '') : ''
+            }
+            const first = filtered[0]
+            return first ? String(first.value || '') : ''
+          }
+        )
+        acc[k] = out
+      }
+    })
+
+    return acc
   }
 
   /**

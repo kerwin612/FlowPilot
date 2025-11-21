@@ -23,6 +23,41 @@ const defaults = require('./defaults.js')
 const { getDAO } = require('../../dao')
 const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar, Profile } = require('../../dao/model/models')
 
+function resolveGlobalTemplates(str, globals) {
+  if (typeof str !== 'string') return str
+  const map = globals && typeof globals.map === 'object' ? globals.map : {}
+  const raw = Array.isArray(globals && globals.raw) ? globals.raw : []
+
+  let value = String(str)
+  value = value.replace(/\{\{\s*(?:vars|global)\.\s*([A-Za-z0-9_]+)\s*\}\}/g, (m, key) => {
+    const v = map[key]
+    return v != null ? String(v) : ''
+  })
+
+  value = value.replace(/\{\{\s*(?:vars|global)\[['"]([^'"]+)['"]((?:,\s*['"][^'"]+['"])*)\](?:\[(\d+)\]|\.([A-Z_][A-Z0-9_]*))?\s*\}\}/g,
+    (match, firstTag, otherTagsStr, indexStr, keyName) => {
+      const tags = [firstTag]
+      if (otherTagsStr) {
+        const m = otherTagsStr.matchAll(/['"]([^'"]+)['"]/g)
+        for (const t of m) tags.push(t[1])
+      }
+      const filtered = raw.filter((g) => Array.isArray(g.tags) && tags.every((tag) => g.tags.includes(tag)))
+      if (indexStr && indexStr.length) {
+        const i = Number(indexStr)
+        const item = filtered[i]
+        return item ? String(item.value || '') : ''
+      }
+      if (keyName && keyName.length) {
+        const item = filtered.find((g) => g.key === keyName)
+        return item ? String(item.value || '') : ''
+      }
+      const first = filtered[0]
+      return first ? String(first.value || '') : ''
+    }
+  )
+  return value
+}
+
 // ==================== 初始化和重置 ====================
 
 /**
@@ -429,6 +464,58 @@ function deleteFolder(id) {
   const dao = getDAO()
   dao.folders.deleteWithChildren(id)
 }
+function cleanupIfUnreferenced(itemId) {
+  const dao = getDAO()
+  const config = getConfig()
+
+  const referenced = new Set()
+
+  const collect = (node) => {
+    if (!node) return
+    if (Array.isArray(node)) { node.forEach(collect); return }
+    if (node && typeof node === 'object') {
+      if (node.id) referenced.add(node.id)
+      if (node.type === 'folder') {
+        ;(node.items || []).forEach(collect)
+      }
+    }
+  }
+
+  ;(config.tabs || []).forEach(tab => collect(tab.items || []))
+
+  const isReferenced = (id) => referenced.has(id)
+
+  try {
+    // 工作流清理
+    const wfRepo = getDAO().workflows
+    if (wfRepo.exists(itemId) && !isReferenced(itemId)) {
+      try { wfRepo.delete(itemId) } catch {}
+    }
+  } catch {}
+
+  try {
+    // 文件夹清理：仅删除未引用的文件夹本体；子项按各自引用独立判定
+    const folderRepo = getDAO().folders
+    if (folderRepo.exists(itemId) && !isReferenced(itemId)) {
+      let folder = null
+      try { folder = folderRepo.findById(itemId) } catch {}
+      try { folderRepo.delete(itemId) } catch {}
+      const childIds = Array.isArray(folder?.items) ? folder.items : []
+      for (const childId of childIds) {
+        if (!isReferenced(childId)) {
+          try {
+            if (folderRepo.exists(childId)) {
+              // 子文件夹未被引用，删除其本体
+              try { folderRepo.delete(childId) } catch {}
+            } else if (getDAO().workflows.exists(childId)) {
+              try { getDAO().workflows.delete(childId) } catch {}
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+}
 
 // ==================== 业务逻辑 ====================
 
@@ -473,7 +560,7 @@ function buildCommand(workflow, params = {}) {
  * @param {Object} baseEnv - 基础环境变量（通常是 process.env）
  * @returns {Object} 展开后的环境变量
  */
-function expandEnvVars(customEnv, baseEnv) {
+function expandEnvVars(customEnv, baseEnv, globals = {}) {
   if (!customEnv || typeof customEnv !== 'object') {
     return {}
   }
@@ -482,7 +569,7 @@ function expandEnvVars(customEnv, baseEnv) {
   const resolving = new Set()
 
   Object.keys(customEnv).forEach(key => {
-    expanded[key] = resolveVar(key, customEnv, baseEnv, expanded, resolving)
+    expanded[key] = resolveVar(key, customEnv, baseEnv, expanded, resolving, globals)
   })
 
   return expanded
@@ -498,7 +585,7 @@ function expandEnvVars(customEnv, baseEnv) {
  * @param {Set} resolving - 正在解析的变量（防止循环引用）
  * @returns {string} 解析后的变量值
  */
-function resolveVar(key, customEnv, baseEnv, expanded, resolving) {
+function resolveVar(key, customEnv, baseEnv, expanded, resolving, globals = {}) {
   // 防止循环引用
   if (resolving.has(key)) {
     return customEnv[key]
@@ -520,7 +607,7 @@ function resolveVar(key, customEnv, baseEnv, expanded, resolving) {
     if (customEnv.hasOwnProperty(varName)) {
       // 引用其他自定义变量，递归展开
       if (!expanded.hasOwnProperty(varName)) {
-        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving)
+        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving, globals)
       }
       return expanded[varName]
     }
@@ -536,12 +623,15 @@ function resolveVar(key, customEnv, baseEnv, expanded, resolving) {
     }
     if (customEnv.hasOwnProperty(varName)) {
       if (!expanded.hasOwnProperty(varName)) {
-        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving)
+        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving, globals)
       }
       return expanded[varName]
     }
     return baseEnv[varName] || match
   })
+
+  // 解析全局变量模板（本地解析，避免跨上下文依赖）
+  value = resolveGlobalTemplates(value, globals)
 
   resolving.delete(key)
   return value
@@ -570,8 +660,17 @@ async function executeCommand(workflow, params = {}) {
   const cmd = buildCommand(workflow, params)
   
   try {
-    // 展开用户环境变量中的引用（如 %PATH%、$HOME 等）
-    const expandedEnv = expandEnvVars(workflow.env || {}, process.env)
+    // 构建全局变量映射用于 {{vars.KEY}} 引用
+    const globalsArray = getGlobalVars()
+    const globalsMap = {}
+    for (const v of globalsArray) {
+      const k = (v && v.key && typeof v.key === 'string') ? v.key.trim() : ''
+      if (k && !(k in globalsMap)) {
+        globalsMap[k] = v.value || ''
+      }
+    }
+    // 展开用户环境变量中的引用（如 %PATH%、$HOME、以及 {{vars.KEY}} 等）
+    const expandedEnv = expandEnvVars(workflow.env || {}, process.env, { map: globalsMap, raw: globalsArray })
     const finalEnv = { ...process.env, ...expandedEnv }
 
     const result = await command(cmd, {
@@ -644,6 +743,9 @@ module.exports = {
   getFolder,
   saveFolder,
   deleteFolder,
+  
+  // 删除时本地化清理未引用实体
+  cleanupIfUnreferenced,
   
   // 业务逻辑
   buildCommand,

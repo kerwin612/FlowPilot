@@ -19,13 +19,26 @@ export function resolveTemplate(str, context) {
 function safeEval(pathExpr, context) {
   try {
     // 简单路径解析 executor[0].result.value.x / env.PATH / trigger.filePath
-    const value = getByPath(context, pathExpr)
+    let value
+    try {
+      const { getByPathWithTags } = require('../../../shared/template/pathResolver.js')
+      value = getByPathWithTags(context, pathExpr)
+    } catch {
+      // 回退到本地解析
+      value = getByPath(context, pathExpr)
+    }
     if (value == null) return ''
     // 如果是对象或数组，返回JSON格式，否则返回字符串
     if (typeof value === 'object') {
       return JSON.stringify(value, null, 2)
     }
-    return String(value)
+    // 支持在字符串结果中继续解析全局变量模板（与环境变量值解析保持一致）
+    try {
+      const { resolveAll } = require('../../../shared/template/index.js')
+      return resolveAll(String(value), context)
+    } catch {
+      return String(value)
+    }
   } catch {
     return ''
   }
@@ -95,32 +108,31 @@ function getByPath(root, expr) {
     // 无法解析的路径
     return null
   }
-  
-  // 原有逻辑：拆分成 tokens：支持 a.b, a[0].b[1].c
-  const tokens = []
-  expr.replace(/([^.[\]]+)|\[(\d+)\]/g, (m, name, index) => {
-    if (name) tokens.push(name)
-    else if (index != null) tokens.push(Number(index))
-  })
-  let cur = mapAlias(root, tokens[0])
-  if (tokens.length && aliasNeedsSkip(tokens[0])) tokens.shift()
-  // 重要修复：当去掉别名前缀后，应从索引0开始遍历，避免跳过第一个token（例如 executor[0] 中的 0）
-  for (let i = 0; i < tokens.length; i++) {
-    if (cur == null) return null
-    const t = tokens[i]
-    cur = cur[t]
+  try {
+    const { getByPath: sharedGetByPath } = require('../../../shared/template/pathResolver.js')
+    return sharedGetByPath(root, expr)
+  } catch {
+    const tokens = []
+    expr.replace(/([^.[\]]+)|\[(\d+)\]/g, (m, name, index) => {
+      if (name) tokens.push(name)
+      else if (index != null) tokens.push(Number(index))
+    })
+    const mapAliasLocal = (r, first) => {
+      if (first === 'executor' || first === 'executors') return r.executors
+      if (first === 'env') return r.env
+      if (first === 'vars' || first === 'global') return r.vars
+      if (first === 'trigger') return r.trigger
+      if (first === 'values') return r.values
+      return r[first]
+    }
+    const aliasNeedsSkipLocal = (first) => ['executor', 'executors', 'env', 'vars', 'global', 'trigger', 'values'].includes(first)
+    let cur = mapAliasLocal(root, tokens[0])
+    if (tokens.length && aliasNeedsSkipLocal(tokens[0])) tokens.shift()
+    for (let i = 0; i < tokens.length; i++) {
+      if (cur == null) return null
+      const t = tokens[i]
+      cur = cur[t]
+    }
+    return cur
   }
-  return cur
-}
-
-function mapAlias(root, first) {
-  if (first === 'executor' || first === 'executors') return root.executors
-  if (first === 'env') return root.env
-  if (first === 'vars' || first === 'global') return root.vars
-  if (first === 'trigger') return root.trigger
-  if (first === 'values') return root.values
-  return root[first]
-}
-function aliasNeedsSkip(first) {
-  return ['executor', 'executors', 'env', 'vars', 'global', 'trigger', 'values'].includes(first)
 }

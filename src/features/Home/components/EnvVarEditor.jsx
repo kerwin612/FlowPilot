@@ -306,7 +306,7 @@ export default function EnvVarEditor({ envVars = [], onChange, onDelete }) {
             <Input.TextArea
               value={editingValue}
               onChange={(e) => setEditingValue(e.target.value)}
-              placeholder="例如：C:\Program Files\MyApp 或 %PATH%;C:\MyApp"
+              placeholder={"例如：C:\\Program Files\\MyApp 或 %PATH%;C:\\MyApp，或 {{vars.API_URL}}"}
               autoSize={{ minRows: 2, maxRows: 6 }}
               style={{ fontFamily: 'monospace' }}
             />
@@ -462,7 +462,7 @@ export default function EnvVarEditor({ envVars = [], onChange, onDelete }) {
         message="环境变量引用说明"
         description={
           <div style={{ fontSize: 12 }}>
-            <div>在变量值中可以引用其他环境变量：</div>
+            <div>在变量值中可以引用其他变量：</div>
             <ul style={{ marginTop: 4, marginBottom: 0, paddingLeft: 20 }}>
               <li>
                 <strong>Windows 风格：</strong> 使用 <code>%变量名%</code>，例如{' '}
@@ -471,6 +471,9 @@ export default function EnvVarEditor({ envVars = [], onChange, onDelete }) {
               <li>
                 <strong>Unix 风格：</strong> 使用 <code>$变量名</code> 或 <code>${'{变量名}'}</code>
                 ，例如 <code>MYPATH=$HOME/bin</code>
+              </li>
+              <li>
+                <strong>全局变量：</strong> 使用 <code>{'{{vars.KEY}}'}</code> 或 <code>{'{{global.KEY}}'}</code>，例如 <code>{'{{vars.API_URL}}'}</code>
               </li>
               <li>
                 <strong>引用自己：</strong> 使用 <code>PATH=%PATH%;新路径</code> 可以追加到现有 PATH
