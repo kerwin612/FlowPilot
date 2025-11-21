@@ -1,4 +1,4 @@
-import { systemService, configService } from './index'
+import { systemService } from './index'
 import { runComposedWorkflow } from '../features/Home/workflow/engine/runWorkflow'
 import { isCancelError } from '../features/Home/workflow/engine/errors'
 
@@ -44,13 +44,11 @@ class WorkflowService {
         filePath: triggerData.userParams?.__filePath
       }
 
-      const env = configService.getEnabledEnvVars()
-
       const options = {
         signal: abortController.signal
       }
 
-      await runComposedWorkflow(workflow, { ...trigger, env }, options)
+      await runComposedWorkflow(workflow, trigger, options)
     } catch (error) {
       // 取消错误：显示轻量提示
       if (isCancelError(error)) {

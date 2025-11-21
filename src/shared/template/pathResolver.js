@@ -1,3 +1,7 @@
+
+
+import { filterByTags } from './globalVarResolver'
+
 function tokenize(expr) {
   const tokens = []
   expr.replace(/([^.[\]]+)|\[(\d+)\]/g, (m, name, index) => {
@@ -20,7 +24,7 @@ function aliasNeedsSkip(first) {
   return ['executor', 'executors', 'env', 'vars', 'global', 'trigger', 'values'].includes(first)
 }
 
-function getByPath(root, expr) {
+export function getByPath(root, expr) {
   // 标签筛选语法在 compile.js 的上层已处理，这里只做常规路径
   const tokens = tokenize(expr)
   let cur = mapAlias(root, tokens[0])
@@ -33,7 +37,7 @@ function getByPath(root, expr) {
   return cur
 }
 
-function getByPathWithTags(root, expr) {
+export function getByPathWithTags(root, expr) {
   const tagFilterMatch = expr.match(/^(vars|global)\[['"]([^'"]+)['"]((?:,\s*['"][^'"]+['"])*)\](.*)$/)
   if (tagFilterMatch) {
     const [, alias, firstTag, otherTagsStr, restPath] = tagFilterMatch
@@ -66,6 +70,3 @@ function getByPathWithTags(root, expr) {
   }
   return getByPath(root, expr)
 }
-
-module.exports = { getByPath, getByPathWithTags, tokenize, mapAlias, aliasNeedsSkip }
-const { filterByTags } = require('./globalVarResolver')

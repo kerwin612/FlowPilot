@@ -1,3 +1,5 @@
+import { resolveAll } from '../../../../shared/template/globalVarResolver';
+import { getByPath as sharedGetByPath, getByPathWithTags } from '../../../../shared/template/pathResolver';
 // 模板解析（统一风格）
 // 支持双花括号 {{ ... }} 是规则写法
 // 访问形式：
@@ -21,7 +23,6 @@ function safeEval(pathExpr, context) {
     // 简单路径解析 executor[0].result.value.x / env.PATH / trigger.filePath
     let value
     try {
-      const { getByPathWithTags } = require('../../../shared/template/pathResolver.js')
       value = getByPathWithTags(context, pathExpr)
     } catch {
       // 回退到本地解析
@@ -34,7 +35,6 @@ function safeEval(pathExpr, context) {
     }
     // 支持在字符串结果中继续解析全局变量模板（与环境变量值解析保持一致）
     try {
-      const { resolveAll } = require('../../../shared/template/index.js')
       return resolveAll(String(value), context)
     } catch {
       return String(value)
@@ -109,7 +109,6 @@ function getByPath(root, expr) {
     return null
   }
   try {
-    const { getByPath: sharedGetByPath } = require('../../../shared/template/pathResolver.js')
     return sharedGetByPath(root, expr)
   } catch {
     const tokens = []

@@ -3,6 +3,7 @@ import { executorRegistry } from '../executors/registry'
 import { actionRegistry } from '../actions/registry'
 import configService from '../../../../services/configService'
 import { WorkflowCancelError, isCancelError } from './errors'
+import { resolveAll } from '../../../../shared/template/globalVarResolver'
 
 /**
  * 执行组合式工作流
@@ -26,6 +27,9 @@ export async function runComposedWorkflow(workflow, trigger = {}, options = {}) 
   const { onEvent, signal } = options
   const env = configService.getEnabledEnvVars()
   const vars = configService.getGlobalVarsMap()
+  Object.keys(env).forEach((k) => {
+    env[k] = resolveAll(env[k], { vars })
+  })
   const context = createExecutionContext(workflow, trigger, env, vars)
 
   const emitEvent = (type, data) => {

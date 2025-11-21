@@ -325,49 +325,10 @@ class ConfigService {
       return v.deviceId === currentDeviceId
     })
 
-    const acc = filtered.reduce((map, v) => {
+    return filtered.reduce((map, v) => {
       map[v.name.trim()] = v.value || ''
       return map
     }, {})
-
-    const gvMap = this.getGlobalVarsMap() || {}
-    const ctx = { map: gvMap, raw: gvMap._raw || [] }
-    Object.keys(acc).forEach((k) => {
-      const val = acc[k]
-      if (typeof val === 'string') {
-        const map = ctx.map || {}
-        const raw = Array.isArray(ctx.raw) ? ctx.raw : []
-        let out = String(val)
-        out = out.replace(/\{\{\s*(?:vars|global)\.\s*([A-Za-z0-9_]+)\s*\}\}/g, (m, key) => {
-          const v = map[key]
-          return v != null ? String(v) : ''
-        })
-        out = out.replace(/\{\{\s*(?:vars|global)\[['"]([^'"]+)['"]((?:,\s*['"][^'"]+['"])*)\](?:\[(\d+)\]|\.([A-Z_][A-Z0-9_]*))?\s*\}\}/g,
-          (match, firstTag, otherTagsStr, indexStr, keyName) => {
-            const tags = [firstTag]
-            if (otherTagsStr) {
-              const m = otherTagsStr.matchAll(/['"]([^'"]+)['"]/g)
-              for (const t of m) tags.push(t[1])
-            }
-            const filtered = raw.filter((g) => Array.isArray(g.tags) && tags.every((tag) => g.tags.includes(tag)))
-            if (indexStr && indexStr.length) {
-              const i = Number(indexStr)
-              const item = filtered[i]
-              return item ? String(item.value || '') : ''
-            }
-            if (keyName && keyName.length) {
-              const item = filtered.find((g) => g.key === keyName)
-              return item ? String(item.value || '') : ''
-            }
-            const first = filtered[0]
-            return first ? String(first.value || '') : ''
-          }
-        )
-        acc[k] = out
-      }
-    })
-
-    return acc
   }
 
   /**

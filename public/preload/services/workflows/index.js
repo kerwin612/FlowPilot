@@ -23,41 +23,6 @@ const defaults = require('./defaults.js')
 const { getDAO } = require('../../dao')
 const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar, Profile } = require('../../dao/model/models')
 
-function resolveGlobalTemplates(str, globals) {
-  if (typeof str !== 'string') return str
-  const map = globals && typeof globals.map === 'object' ? globals.map : {}
-  const raw = Array.isArray(globals && globals.raw) ? globals.raw : []
-
-  let value = String(str)
-  value = value.replace(/\{\{\s*(?:vars|global)\.\s*([A-Za-z0-9_]+)\s*\}\}/g, (m, key) => {
-    const v = map[key]
-    return v != null ? String(v) : ''
-  })
-
-  value = value.replace(/\{\{\s*(?:vars|global)\[['"]([^'"]+)['"]((?:,\s*['"][^'"]+['"])*)\](?:\[(\d+)\]|\.([A-Z_][A-Z0-9_]*))?\s*\}\}/g,
-    (match, firstTag, otherTagsStr, indexStr, keyName) => {
-      const tags = [firstTag]
-      if (otherTagsStr) {
-        const m = otherTagsStr.matchAll(/['"]([^'"]+)['"]/g)
-        for (const t of m) tags.push(t[1])
-      }
-      const filtered = raw.filter((g) => Array.isArray(g.tags) && tags.every((tag) => g.tags.includes(tag)))
-      if (indexStr && indexStr.length) {
-        const i = Number(indexStr)
-        const item = filtered[i]
-        return item ? String(item.value || '') : ''
-      }
-      if (keyName && keyName.length) {
-        const item = filtered.find((g) => g.key === keyName)
-        return item ? String(item.value || '') : ''
-      }
-      const first = filtered[0]
-      return first ? String(first.value || '') : ''
-    }
-  )
-  return value
-}
-
 // ==================== 初始化和重置 ====================
 
 /**
@@ -629,9 +594,6 @@ function resolveVar(key, customEnv, baseEnv, expanded, resolving, globals = {}) 
     }
     return baseEnv[varName] || match
   })
-
-  // 解析全局变量模板（本地解析，避免跨上下文依赖）
-  value = resolveGlobalTemplates(value, globals)
 
   resolving.delete(key)
   return value

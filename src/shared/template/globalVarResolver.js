@@ -1,10 +1,10 @@
-function filterByTags(varsRaw, tags) {
+export function filterByTags(varsRaw, tags) {
   const arr = Array.isArray(varsRaw) ? varsRaw : []
   const t = Array.isArray(tags) ? tags : []
   return arr.filter((g) => Array.isArray(g?.tags) && t.every((tag) => g.tags.includes(tag)))
 }
 
-function resolveVarsTemplate(str, ctx = {}) {
+export function resolveVarsTemplate(str, ctx = {}) {
   if (typeof str !== 'string') return str
   const map = ctx && typeof ctx.map === 'object' ? ctx.map : {}
   const raw = Array.isArray(ctx.raw) ? ctx.raw : []
@@ -41,4 +41,11 @@ function resolveVarsTemplate(str, ctx = {}) {
   return value
 }
 
-module.exports = { filterByTags, resolveVarsTemplate }
+export function resolveAll(str, context) {
+  if (typeof str !== 'string') return str
+  const varsCtx = {
+    map: context?.vars || {},
+    raw: context?.vars?._raw || []
+  }
+  return resolveVarsTemplate(str, varsCtx)
+}
