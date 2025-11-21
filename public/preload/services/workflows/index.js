@@ -429,6 +429,58 @@ function deleteFolder(id) {
   const dao = getDAO()
   dao.folders.deleteWithChildren(id)
 }
+function cleanupIfUnreferenced(itemId) {
+  const dao = getDAO()
+  const config = getConfig()
+
+  const referenced = new Set()
+
+  const collect = (node) => {
+    if (!node) return
+    if (Array.isArray(node)) { node.forEach(collect); return }
+    if (node && typeof node === 'object') {
+      if (node.id) referenced.add(node.id)
+      if (node.type === 'folder') {
+        ;(node.items || []).forEach(collect)
+      }
+    }
+  }
+
+  ;(config.tabs || []).forEach(tab => collect(tab.items || []))
+
+  const isReferenced = (id) => referenced.has(id)
+
+  try {
+    // 工作流清理
+    const wfRepo = getDAO().workflows
+    if (wfRepo.exists(itemId) && !isReferenced(itemId)) {
+      try { wfRepo.delete(itemId) } catch {}
+    }
+  } catch {}
+
+  try {
+    // 文件夹清理：仅删除未引用的文件夹本体；子项按各自引用独立判定
+    const folderRepo = getDAO().folders
+    if (folderRepo.exists(itemId) && !isReferenced(itemId)) {
+      let folder = null
+      try { folder = folderRepo.findById(itemId) } catch {}
+      try { folderRepo.delete(itemId) } catch {}
+      const childIds = Array.isArray(folder?.items) ? folder.items : []
+      for (const childId of childIds) {
+        if (!isReferenced(childId)) {
+          try {
+            if (folderRepo.exists(childId)) {
+              // 子文件夹未被引用，删除其本体
+              try { folderRepo.delete(childId) } catch {}
+            } else if (getDAO().workflows.exists(childId)) {
+              try { getDAO().workflows.delete(childId) } catch {}
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+}
 
 // ==================== 业务逻辑 ====================
 
@@ -644,6 +696,9 @@ module.exports = {
   getFolder,
   saveFolder,
   deleteFolder,
+  
+  // 删除时本地化清理未引用实体
+  cleanupIfUnreferenced,
   
   // 业务逻辑
   buildCommand,

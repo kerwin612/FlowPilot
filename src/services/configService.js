@@ -161,6 +161,13 @@ class ConfigService {
     
     window.services.workflow.deleteTab(tab.id)
     this.tabs = window.services.workflow.getTabs()
+    try {
+      const items = Array.isArray(tab.items) ? tab.items : []
+      for (const it of items) {
+        const id = typeof it === 'string' ? it : it?.id
+        if (id) window.services.workflow.cleanupIfUnreferenced(id)
+      }
+    } catch {}
     this.notifyListeners()
   }
 
@@ -214,6 +221,7 @@ class ConfigService {
     tab.items = tab.items.filter((item) => item.id !== itemId)
     window.services.workflow.saveTab(tab)
     this.tabs = window.services.workflow.getTabs()
+    try { window.services.workflow.cleanupIfUnreferenced(itemId) } catch {}
     this.notifyListeners()
   }
 
