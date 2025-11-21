@@ -83,7 +83,7 @@ const DragHandle = () => {
   const ctx = useContext(DragActivatorContext)
   return (
     <span {...(ctx?.listeners || {})} style={{ display: 'inline-flex' }}>
-      <HolderOutlined className="drag-handle" style={{ cursor: 'grab' }} role="button" aria-label="拖拽排序" />
+      <HolderOutlined className="drag-handle" style={{ cursor: 'grab', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }} role="button" aria-label="拖拽排序" />
     </span>
   )
 }

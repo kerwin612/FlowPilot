@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Modal,
   Tabs,
@@ -28,6 +28,10 @@ import WorkflowEditor from './WorkflowEditor'
 import EnvVarEditor from './EnvVarEditor'
 import GlobalVarEditor from './GlobalVarEditor'
 import { configService } from '../../../services'
+import { HolderOutlined } from '@ant-design/icons'
+import { DndContext, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core'
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { getWorkflowDisplayText } from '../workflow/workflowDisplay'
 import {
   ITEM_TYPE_WORKFLOW,
@@ -214,6 +218,78 @@ export default function ConfigManager({ config, onClose }) {
   }
 
   const currentTab = tabs[currentTabIndex]
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const SortableItem = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+    const style = { transform: CSS.Transform.toString(transform), transition, position: 'relative' }
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} className="drag-wrap">
+        <span {...listeners} className="drag-handle" onMouseDown={(e) => e.stopPropagation()}><HolderOutlined /></span>
+        {children}
+      </div>
+    )
+  }
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+    if (!over) return
+    const activeId = active.id
+    const overId = over.id
+    const tab = tabs[currentTabIndex]
+    const rootIds = (tab.items || []).map(i => i.id)
+    const findFolderOf = (itemId) => tab.items.find(it => it.type === ITEM_TYPE_FOLDER && (it.items || []).some(s => s.id === itemId))
+    const fromFolder = findFolderOf(activeId)
+    const overFolder = tab.items.find(it => it.id === overId && it.type === ITEM_TYPE_FOLDER)
+    const overSubFolder = findFolderOf(overId)
+
+    if (fromFolder && rootIds.includes(overId)) {
+      const targetIndex = tab.items.findIndex(i => i.id === overId)
+      configService.moveItemOutOfFolder(currentTabIndex, activeId, fromFolder.id, targetIndex)
+      setTabs(configService.getTabs())
+      return
+    }
+
+    if (overFolder) {
+      if (fromFolder && fromFolder.id !== overFolder.id) {
+        configService.moveItemBetweenFolders(currentTabIndex, activeId, fromFolder.id, overFolder.id)
+        setTabs(configService.getTabs())
+        return
+      }
+      if (!fromFolder) {
+        configService.moveItemToFolder(currentTabIndex, activeId, overFolder.id)
+        setTabs(configService.getTabs())
+        return
+      }
+    }
+
+    if (!fromFolder && overSubFolder) {
+      configService.moveItemToFolder(currentTabIndex, activeId, overSubFolder.id)
+      setTabs(configService.getTabs())
+      return
+    }
+
+    if (fromFolder && overSubFolder && fromFolder.id === overSubFolder.id) {
+      const folder = tab.items.find(it => it.id === fromFolder.id)
+      const oldIndex = (folder.items || []).findIndex(i => i.id === activeId)
+      const newIndex = (folder.items || []).findIndex(i => i.id === overId)
+      if (oldIndex < 0 || newIndex < 0) return
+      const next = arrayMove(folder.items, oldIndex, newIndex)
+      configService.reorderFolderItems(currentTabIndex, folder.id, next)
+      setTabs(configService.getTabs())
+      return
+    }
+
+    if (rootIds.includes(activeId) && rootIds.includes(overId)) {
+      const oldIndex = tab.items.findIndex(i => i.id === activeId)
+      const newIndex = tab.items.findIndex(i => i.id === overId)
+      if (oldIndex < 0 || newIndex < 0) return
+      const next = arrayMove(tab.items, oldIndex, newIndex)
+      configService.reorderItems(currentTabIndex, next)
+      setTabs(configService.getTabs())
+      return
+    }
+  }
   const [choiceVisible, setChoiceVisible] = useState(false)
   const [choice, setChoice] = useState({ mode: null, entityId: null, tabIndex: null })
   const [configText, setConfigText] = useState('')
@@ -355,7 +431,7 @@ export default function ConfigManager({ config, onClose }) {
     return (
       <List.Item
         key={item.id}
-        style={{ paddingLeft: 40 }}
+        style={{ paddingLeft: 84 }}
         actions={[
           <Button
             key="edit"
@@ -405,6 +481,7 @@ export default function ConfigManager({ config, onClose }) {
     return (
       <List.Item
         key={item.id}
+        style={{ paddingLeft: 28 }}
         actions={[
           <Button
             key="edit"
@@ -524,12 +601,25 @@ export default function ConfigManager({ config, onClose }) {
         bordered={false}
       >
         {currentTab?.items && currentTab.items.length > 0 ? (
-          <List
-            dataSource={currentTab.items.flatMap((item) => {
-              if (item.type === ITEM_TYPE_FOLDER) {
+          <>
+            <style>{`
+              .drag-wrap{position:relative;}
+              .drag-wrap .drag-handle{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;color:var(--color-text-secondary);cursor:grab;}
+            `}</style>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={currentTab.items.flatMap((item)=>{
                 const folderExpanded = expandedFolders.includes(item.id)
-                return [
-                  { ...item, _isFolder: true },
+                if (item.type === ITEM_TYPE_FOLDER && folderExpanded && item.items) {
+                  return [item.id, ...item.items.map(sub=>sub.id)]
+                }
+                return [item.id]
+              })} strategy={verticalListSortingStrategy}>
+            <List
+              dataSource={currentTab.items.flatMap((item) => {
+                if (item.type === ITEM_TYPE_FOLDER) {
+                  const folderExpanded = expandedFolders.includes(item.id)
+                  return [
+                    { ...item, _isFolder: true },
                   ...(folderExpanded && item.items
                     ? item.items.map((subItem) => ({
                       ...subItem,
@@ -542,7 +632,9 @@ export default function ConfigManager({ config, onClose }) {
               return [item]
             })}
             renderItem={(item) => {
-              if (item._isSubItem) return renderFolderItem(item, item._parentId)
+              if (item._isSubItem) return (
+                <SortableItem id={item.id}>{renderFolderItem(item, item._parentId)}</SortableItem>
+              )
               if (item._isFolder) {
                 const isExpanded = expandedFolders.includes(item.id)
                 const toggleExpand = (e) => {
@@ -552,6 +644,7 @@ export default function ConfigManager({ config, onClose }) {
                   )
                 }
                 return (
+                  <SortableItem id={item.id}>
                   <List.Item
                     key={item.id}
                     style={{ cursor: 'pointer' }}
@@ -620,7 +713,7 @@ export default function ConfigManager({ config, onClose }) {
                           type="text"
                           size="small"
                           icon={isExpanded ? <DownOutlined /> : <RightOutlined />}
-                          style={{ marginRight: -8 }}
+                          style={{ marginRight: -8, marginLeft: 28 }}
                         />
                       }
                       title={
@@ -632,11 +725,17 @@ export default function ConfigManager({ config, onClose }) {
                       }
                     />
                   </List.Item>
+                  </SortableItem>
                 )
               }
-              return renderListItem(item)
+              return (
+                <SortableItem id={item.id}>{renderListItem(item)}</SortableItem>
+              )
             }}
-          />
+            />
+              </SortableContext>
+            </DndContext>
+          </>
         ) : (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无内容，点击上方按钮添加" />
         )}

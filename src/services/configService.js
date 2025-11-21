@@ -255,6 +255,47 @@ class ConfigService {
     this.notifyListeners()
   }
 
+  reorderFolderItems(tabIndex, folderId, newOrder) {
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    const folder = tab.items.find((i) => i.id === folderId && i.type === 'folder')
+    if (!folder) return
+    folder.items = newOrder
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
+  }
+
+  moveItemOutOfFolder(tabIndex, itemId, fromFolderId, targetIndex) {
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    const folder = tab.items.find((i) => i.id === fromFolderId && i.type === 'folder')
+    if (!folder || !Array.isArray(folder.items)) return
+    const idx = folder.items.findIndex((it) => it.id === itemId)
+    if (idx < 0) return
+    const [item] = folder.items.splice(idx, 1)
+    const insertAt = typeof targetIndex === 'number' && targetIndex >= 0 ? Math.min(targetIndex, tab.items.length) : tab.items.length
+    tab.items = [...tab.items.slice(0, insertAt), item, ...tab.items.slice(insertAt)]
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
+  }
+
+  moveItemBetweenFolders(tabIndex, itemId, fromFolderId, toFolderId) {
+    const tab = this.tabs[tabIndex]
+    if (!tab) return
+    const from = tab.items.find((i) => i.id === fromFolderId && i.type === 'folder')
+    const to = tab.items.find((i) => i.id === toFolderId && i.type === 'folder')
+    if (!from || !to) return
+    const idx = (from.items || []).findIndex((it) => it.id === itemId)
+    if (idx < 0) return
+    const [item] = from.items.splice(idx, 1)
+    to.items = [...(to.items || []), item]
+    window.services.workflow.saveTab(tab)
+    this.tabs = window.services.workflow.getTabs()
+    this.notifyListeners()
+  }
+
   // ==================== EnvVar 操作 ====================
 
   /**
