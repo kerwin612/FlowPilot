@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback, createContext, useContext } from 'react'
 import {
   Card,
   Table,
@@ -24,22 +24,93 @@ import {
   DownOutlined,
   UpOutlined,
   InfoCircleOutlined,
-  LaptopOutlined
+  LaptopOutlined,
+  HolderOutlined
 } from '@ant-design/icons'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const { Title, Text } = Typography
 
 import systemService from '../../../services/systemService'
 
-export default function EnvVarEditor({ envVars = [], onChange }) {
-  const deviceId = systemService.getNativeId();
+const DragActivatorContext = createContext(null)
+
+// 可排序的环境变量行组件
+const SortableEnvVarRow = ({ record, ...props }) => {
+  // 检查 record 是否存在
+  if (!record) {
+    return <tr {...props} />;
+  }
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: record.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1
+  }
+
+  return (
+    <DragActivatorContext.Provider value={{ listeners }}>
+      <tr ref={setNodeRef} style={style} {...attributes}>
+        {props.children}
+      </tr>
+    </DragActivatorContext.Provider>
+  )
+}
+
+const DragHandle = () => {
+  const ctx = useContext(DragActivatorContext)
+  return (
+    <span {...(ctx?.listeners || {})} style={{ display: 'inline-flex' }}>
+      <HolderOutlined className="drag-handle" style={{ cursor: 'grab' }} role="button" aria-label="拖拽排序" />
+    </span>
+  )
+}
+
+export default function EnvVarEditor({ envVars = [], onChange, onDelete }) {
+  const deviceId = systemService.getNativeId()
   const [editingKey, setEditingKey] = useState('')
   const [editingName, setEditingName] = useState('')
   const [editingValue, setEditingValue] = useState('')
   const [expandedMap, setExpandedMap] = useState({})
   const [copiedKey, setCopiedKey] = useState('')
+  
 
-  const handleAdd = () => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  const tableComponents = useMemo(() => ({
+    body: {
+      row: (props) => {
+        const record = envVars.find(v => v.id === props['data-row-key'])
+        return <SortableEnvVarRow record={record} {...props} />
+      }
+    }
+  }), [envVars])
+
+  const handleAdd = useCallback(() => {
     const newVar = {
       id: `env_${Date.now()}`,
       name: '',
@@ -52,26 +123,25 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
     setEditingKey(newVar.id)
     setEditingName('')
     setEditingValue('')
-  }
+  }, [envVars, onChange])
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
+    try { if (typeof onDelete === 'function') onDelete(id) } catch {}
     onChange(envVars.filter((v) => v.id !== id))
     message.success('已删除')
-  }
+  }, [envVars, onChange, onDelete])
 
-  const handleEdit = (record) => {
+  const handleEdit = useCallback((record) => {
     setEditingKey(record.id)
     setEditingName(record.name)
     setEditingValue(record.value)
-  }
+  }, [])
 
-  const handleSave = (id) => {
+  const handleSave = useCallback((id) => {
     if (!editingName.trim()) {
       message.error('变量名不能为空')
       return
     }
-
-    // 移除了 key 唯一性校验，允许多个同名变量（不同 deviceId）
 
     onChange(
       envVars.map((v) =>
@@ -80,27 +150,25 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
     )
     setEditingKey('')
     message.success('已保存')
-  }
+  }, [editingName, editingValue, envVars, onChange])
 
-  const handleCancel = (id) => {
-    // 如果是新添加的空项，取消时删除
+  const handleCancel = useCallback((id) => {
     const item = envVars.find((v) => v.id === id)
     if (item && !item.name && !item.value) {
       onChange(envVars.filter((v) => v.id !== id))
     }
     setEditingKey('')
-  }
+  }, [envVars, onChange])
 
-  const handleToggle = (id, enabled) => {
+  const handleToggle = useCallback((id, enabled) => {
     onChange(envVars.map((v) => (v.id === id ? { ...v, enabled } : v)))
-  }
+  }, [envVars, onChange])
 
-  const copyValue = async (id, value) => {
+  const copyValue = useCallback(async (id, value) => {
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(value || '')
       } else {
-        // 退化方案
         const ta = document.createElement('textarea')
         ta.value = value || ''
         document.body.appendChild(ta)
@@ -108,19 +176,33 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         document.execCommand('copy')
         document.body.removeChild(ta)
       }
-      // 轻量提示：在拷贝按钮上方短暂显示“已复制”
       setCopiedKey(id)
-      window.setTimeout(() => setCopiedKey(''), 900)
+      setTimeout(() => setCopiedKey(''), 900)
     } catch (e) {
       message.error('复制失败')
     }
-  }
+  }, [])
 
-  const toggleExpand = (id) => {
+  const toggleExpand = useCallback((id) => {
     setExpandedMap((m) => ({ ...m, [id]: !m[id] }))
-  }
+  }, [])
 
-  const columns = [
+  const handleDragStart = useCallback(() => {}, [])
+
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event
+    if (!over) return
+    if (active.id !== over.id) {
+      const oldIndex = envVars.findIndex((item) => item.id === active.id)
+      const newIndex = envVars.findIndex((item) => item.id === over.id)
+      
+      const newEnvVars = arrayMove(envVars, oldIndex, newIndex)
+      // 调用 onChange 回调更新状态
+      onChange(newEnvVars, { type: 'reorder' })
+    }
+  }, [envVars, onChange])
+
+  const columns = useMemo(() => ([
     {
       title: '状态',
       dataIndex: 'enabled',
@@ -148,13 +230,12 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         if (editingKey === record.id) {
           return (
             <Space direction="vertical" size={0} style={{ width: '100%' }}>
-              <Input
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                placeholder="例如：NODE_ENV"
-                autoFocus
-                onPressEnter={() => handleSave(record.id)}
-              />
+                <Input
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  placeholder="例如：NODE_ENV"
+                  onPressEnter={() => handleSave(record.id)}
+                />
               <Space size={8} align="center">
                 <Switch
                   checked={!!record.deviceId}
@@ -181,6 +262,7 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         }
         return (
           <Space size={8} align="center" wrap={false}>
+            <DragHandle />
             <Text
               style={{
                 color: record.enabled ? 'inherit' : 'var(--color-text-disabled)',
@@ -352,7 +434,7 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
         )
       }
     }
-  ]
+  ]), [deviceId, editingKey, editingName, editingValue, expandedMap, copiedKey, envVars])
 
   return (
     <Card
@@ -408,20 +490,31 @@ export default function EnvVarEditor({ envVars = [], onChange }) {
       />
       {envVars.length > 0 ? (
         <div className="env-vars-table-wrap" style={{ width: '100%', overflowX: 'hidden' }}>
-          {/* 说明：横向滚动条最初被隐藏导致最右侧内容被裁剪，这里通过给外层留出 paddingRight (≈ 系统滚动条宽度) 避免裁剪 */}
           <style>{`
             .env-vars-table-wrap .ant-table-container { /* 保持内部默认 overflow 逻辑，允许自适应宽度 */ }
-            /* 如果仍出现极端长单词导致的水平滚动，可考虑为 value 列增加 word-break: break-all; （已在展开态处理） */
           `}</style>
-          <Table
-            dataSource={envVars}
-            columns={columns}
-            rowKey="id"
-            pagination={false}
-            size="small"
-            tableLayout="fixed"
-            style={{ width: '100%' }}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={envVars.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <Table
+                dataSource={envVars}
+                columns={columns}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                tableLayout="fixed"
+                style={{ width: '100%' }}
+                components={tableComponents}
+              />
+            </SortableContext>
+          </DndContext>
         </div>
       ) : (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无环境变量，点击上方按钮添加" />

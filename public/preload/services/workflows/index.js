@@ -304,6 +304,14 @@ function saveEnvVars(envVars) {
   ;(envVars || []).forEach(envVar => dao.envVars.save(envVar))
 }
 
+/**
+ * 更新环境变量顺序
+ */
+function updateEnvVarOrder(envVarIds) {
+  const dao = getDAO()
+  dao.envVars.updateIndex(envVarIds)
+}
+
 // ==================== GlobalVar CRUD ====================
 
 /**
@@ -616,6 +624,7 @@ module.exports = {
   saveEnvVar,
   deleteEnvVar,
   saveEnvVars,
+  updateEnvVarOrder,
   
   // GlobalVar CRUD
   getGlobalVars,

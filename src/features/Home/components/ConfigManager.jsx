@@ -731,9 +731,18 @@ export default function ConfigManager({ config, onClose }) {
               children: (
                 <EnvVarEditor
                   envVars={envVars}
-                  onChange={(newEnvVars) => {
-                    configService.saveEnvVars(newEnvVars)
+                  onDelete={(id) => {
+                    configService.deleteEnvVar(id)
                     setEnvVars(configService.getEnvVars())
+                  }}
+                  onChange={(newEnvVars, meta) => {
+                    const ids = newEnvVars.map(item => item.id)
+                    if (meta && meta.type === 'reorder') {
+                      configService.updateEnvVarOrder(ids)
+                    } else {
+                      configService.saveEnvVars(newEnvVars)
+                      configService.updateEnvVarOrder(ids)
+                    }
                   }}
                 />
               )

@@ -120,6 +120,18 @@ class BaseRepository extends IRepository {
     const index = this.storage.get(indexKey)
     return index && Array.isArray(index.ids) ? index.ids.length : 0
   }
+  
+  updateIndex(ids) {
+    const indexKey = this._getIndexKey()
+    let index = this.storage.get(indexKey)
+    
+    if (!index) {
+      index = { ids: [] }
+    }
+    
+    index.ids = ids
+    this.storage.set(indexKey, index)
+  }
 
   _updateIndex(id) {
     const indexKey = this._getIndexKey()

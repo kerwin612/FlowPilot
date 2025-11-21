@@ -45,6 +45,7 @@ window.services = {
     saveEnvVar: workflowsService.saveEnvVar,
     deleteEnvVar: workflowsService.deleteEnvVar,
     saveEnvVars: workflowsService.saveEnvVars,
+    updateEnvVarOrder: workflowsService.updateEnvVarOrder,
     
     // GlobalVar CRUD
     getGlobalVars: workflowsService.getGlobalVars,

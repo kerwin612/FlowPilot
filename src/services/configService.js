@@ -312,6 +312,15 @@ class ConfigService {
     this.notifyListeners()
   }
 
+  /**
+   * 更新环境变量顺序
+   */
+  updateEnvVarOrder(envVarIds) {
+    window.services.workflow.updateEnvVarOrder(envVarIds)
+    this.envVars = window.services.workflow.getEnvVars()
+    this.notifyListeners()
+  }
+
   // ==================== GlobalVar 操作 ====================
 
   /**
