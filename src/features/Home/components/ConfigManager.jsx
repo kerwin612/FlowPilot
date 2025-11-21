@@ -169,6 +169,7 @@ export default function ConfigManager({ config, onClose }) {
       folder.items = folder.items.filter((it) => it.id !== itemId)
       configService.updateItem(currentTabIndex, folderId, folder)
       setTabs(configService.getTabs())
+      try { window.services?.workflow?.purgeUnreferenced?.() } catch {}
     }
   }
 

@@ -65,6 +65,7 @@ window.services = {
     getFolder: workflowsService.getFolder,
     saveFolder: workflowsService.saveFolder,
     deleteFolder: workflowsService.deleteFolder,
+    purgeUnreferenced: workflowsService.purgeUnreferenced,
     
     // 业务逻辑
     buildCommand: workflowsService.buildCommand,

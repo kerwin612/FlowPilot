@@ -429,6 +429,43 @@ function deleteFolder(id) {
   const dao = getDAO()
   dao.folders.deleteWithChildren(id)
 }
+function purgeUnreferenced() {
+  const dao = getDAO()
+  const config = getConfig()
+
+  const referenced = new Set()
+
+  const collect = (node) => {
+    if (!node) return
+    if (Array.isArray(node)) { node.forEach(collect); return }
+    if (node.type === 'workflow') { referenced.add(node.id); return }
+    if (node.type === 'folder') {
+      referenced.add(node.id)
+      ;(node.items || []).forEach(collect)
+      return
+    }
+  }
+
+  ;(config.tabs || []).forEach(tab => collect(tab.items || []))
+
+  try {
+    const allW = dao.workflows.findAll()
+    for (const w of allW) {
+      if (w && w.id && !referenced.has(w.id)) {
+        try { dao.workflows.delete(w.id) } catch {}
+      }
+    }
+  } catch {}
+
+  try {
+    const allF = dao.folders.findAll()
+    for (const f of allF) {
+      if (f && f.id && !referenced.has(f.id)) {
+        try { dao.folders.delete(f.id) } catch {}
+      }
+    }
+  } catch {}
+}
 
 // ==================== 业务逻辑 ====================
 
@@ -644,6 +681,9 @@ module.exports = {
   getFolder,
   saveFolder,
   deleteFolder,
+  
+  // 清理未被任何 Tab/文件夹引用的实体
+  purgeUnreferenced,
   
   // 业务逻辑
   buildCommand,

@@ -161,6 +161,7 @@ class ConfigService {
     
     window.services.workflow.deleteTab(tab.id)
     this.tabs = window.services.workflow.getTabs()
+    try { window.services.workflow.purgeUnreferenced() } catch {}
     this.notifyListeners()
   }
 
@@ -214,6 +215,7 @@ class ConfigService {
     tab.items = tab.items.filter((item) => item.id !== itemId)
     window.services.workflow.saveTab(tab)
     this.tabs = window.services.workflow.getTabs()
+    try { window.services.workflow.purgeUnreferenced() } catch {}
     this.notifyListeners()
   }
 
