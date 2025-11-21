@@ -29,7 +29,7 @@ import EnvVarEditor from './EnvVarEditor'
 import GlobalVarEditor from './GlobalVarEditor'
 import { configService } from '../../../services'
 import { HolderOutlined } from '@ant-design/icons'
-import { DndContext, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core'
+import { DndContext, useSensor, useSensors, PointerSensor, closestCenter, KeyboardSensor } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { getWorkflowDisplayText } from '../workflow/workflowDisplay'
@@ -218,7 +218,10 @@ export default function ConfigManager({ config, onClose }) {
   }
 
   const currentTab = tabs[currentTabIndex]
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  )
 
   const SortableItem = ({ id, children }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
@@ -525,12 +528,42 @@ export default function ConfigManager({ config, onClose }) {
   }
 
   // 标签页配置
+  const handleTabReorder = (event) => {
+    const { active, over } = event
+    if (!over) return
+    const activeKey = String(active.id)
+    const overKey = String(over.id)
+    if (activeKey === overKey) return
+    const oldIndex = tabs.findIndex((t, i) => String(i) === activeKey)
+    const newIndex = tabs.findIndex((t, i) => String(i) === overKey)
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(tabs, oldIndex, newIndex)
+    configService.updateTabs(next)
+    setTabs(configService.getTabs())
+    setCurrentTabIndex(next.findIndex((_, i) => i === newIndex))
+  }
+
+  const SortableTabLabel = ({ id, children }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+    const style = { transform: CSS.Transform.toString(transform), transition, display: 'inline-flex', alignItems: 'center', gap: 6 }
+    return (
+      <span ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <span className="tab-drag-handle" style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.35 }}>
+          <HolderOutlined />
+        </span>
+        {children}
+      </span>
+    )
+  }
+
   const tabItems = tabs.map((tab, index) => ({
     key: String(index),
     label: (
-      <Space size={4}>
-        <span>{tab.name}</span>
-      </Space>
+      <SortableTabLabel id={String(index)}>
+        <Space size={4}>
+          <span>{tab.name}</span>
+        </Space>
+      </SortableTabLabel>
     ),
     children: (
       <Card
@@ -800,18 +833,22 @@ export default function ConfigManager({ config, onClose }) {
               children: (
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
                   {tabs.length > 0 ? (
-                    <Tabs
-                      activeKey={String(currentTabIndex)}
-                      onChange={(key) => setCurrentTabIndex(Number(key))}
-                      items={tabItems}
-                      tabBarExtraContent={
-                        <Button
-                          icon={<PlusOutlined />}
-                          title="新建标签页"
-                          onClick={addTab}
-                        ></Button>
-                      }
-                    />
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTabReorder}>
+                      <SortableContext items={tabs.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
+                        <Tabs
+                          activeKey={String(currentTabIndex)}
+                          onChange={(key) => setCurrentTabIndex(Number(key))}
+                          items={tabItems}
+                          tabBarExtraContent={
+                            <Button
+                              icon={<PlusOutlined />}
+                              title="新建标签页"
+                              onClick={addTab}
+                            ></Button>
+                          }
+                        />
+                      </SortableContext>
+                    </DndContext>
                   ) : (
                     <Card>
                       <Empty description="暂无标签页">
