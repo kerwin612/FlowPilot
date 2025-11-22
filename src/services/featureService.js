@@ -77,13 +77,6 @@ class FeatureService {
         return false
       }
 
-      // 注册到 uTools
-      u.setFeature(utoolsFeature)
-
-      // 记录映射关系
-      this.workflowFeatureMap.set(workflow.id, code)
-      this.featureWorkflowMap.set(code, workflow)
-
       console.log(
         `[FeatureService] 注册工作流: ${workflow.name} (${code})`,
         'Feature: ',
@@ -91,6 +84,13 @@ class FeatureService {
         ' | Config: ',
         feature
       )
+
+      // 注册到 uTools
+      u.setFeature(utoolsFeature)
+
+      // 记录映射关系
+      this.workflowFeatureMap.set(workflow.id, code)
+      this.featureWorkflowMap.set(code, workflow)
       return true
     } catch (error) {
       console.error(`[FeatureService] 注册工作流失败:`, error)

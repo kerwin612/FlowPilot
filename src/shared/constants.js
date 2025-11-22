@@ -24,6 +24,9 @@ export const ICON_TYPE_BUILTIN = 'builtin'
  * 图标类型：自定义图片（Base64）
  */
 export const ICON_TYPE_IMAGE = 'image'
+export const ICON_TYPE_EMOJI = 'emoji'
+export const ICON_TYPE_TEXT = 'text'
+export const ICON_TYPE_SVG = 'svg'
 
 // ==================== 配置版本 ====================
 /**

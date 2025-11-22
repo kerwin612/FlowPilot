@@ -1,32 +1,43 @@
-import { Card, Avatar, Typography, Spin } from 'antd'
+import { Card, Typography } from 'antd'
 import * as Icons from '@ant-design/icons'
+import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
 export default function WorkflowCard({ workflow, loading, onClick }) {
+  function SvgIcon({ html }) {
+    const ref = useRef(null)
+    useEffect(() => {
+      const el = ref.current?.querySelector('svg')
+      if (!el) return
+      try {
+        const hasViewBox = el.hasAttribute('viewBox')
+        if (!hasViewBox) {
+          const bbox = el.getBBox()
+          if (bbox && bbox.width > 0 && bbox.height > 0) {
+            el.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`)
+          }
+        }
+        el.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+        el.removeAttribute('width')
+        el.removeAttribute('height')
+        el.style.width = '100%'
+        el.style.height = '100%'
+        el.style.display = 'block'
+        el.style.margin = 'auto'
+      } catch {}
+    }, [html])
+    return <span ref={ref} dangerouslySetInnerHTML={{ __html: html }} />
+  }
   const getIcon = () => {
-    if (loading) {
-      return <Avatar size={48} src={<Spin />} />
-    }
-
-    if (workflow.iconType === 'image' && workflow.icon) {
-      return <Avatar size={48} src={workflow.icon} />
-    }
-
-    if (workflow.iconType === 'builtin' && workflow.iconKey) {
-      const IconComponent = Icons[workflow.iconKey]
-      return (
-        <Avatar
-          size={48}
-          style={{ backgroundColor: workflow.iconColor || 'var(--color-primary)' }}
-          icon={IconComponent ? <IconComponent /> : <Icons.ThunderboltOutlined />}
-        />
-      )
-    }
-
-    const bgColor = workflow.iconColor || 'var(--color-primary)'
     return (
-      <Avatar size={48} style={{ backgroundColor: bgColor }} icon={<Icons.ThunderboltOutlined />} />
+      <IconDisplay
+        data={workflow}
+        size={48}
+        defaultColor={'var(--color-primary)'}
+        defaultBuiltinIcon={<Icons.ThunderboltOutlined />}
+        loading={loading}
+      />
     )
   }
 
@@ -46,8 +57,8 @@ export default function WorkflowCard({ workflow, loading, onClick }) {
         }
       }}
     >
-      <div style={{ marginBottom: 8 }}>{getIcon()}</div>
-      <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block' }}>
+      <div style={{ width: 48, height: 48, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: 0 }}>{getIcon()}</div>
+      <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 4 }}>
         {workflow.name || '未命名'}
       </Text>
     </Card>

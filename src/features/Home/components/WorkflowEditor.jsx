@@ -12,7 +12,10 @@ import {
   ICON_TYPE_IMAGE,
   DEFAULT_ICON_KEY,
   DEFAULT_ICON_COLOR,
-  ITEM_TYPE_FOLDER
+  ITEM_TYPE_FOLDER,
+  ICON_TYPE_EMOJI,
+  ICON_TYPE_TEXT,
+  ICON_TYPE_SVG
 } from '../../../shared/constants'
 
 export default function WorkflowEditor({ open, type, initialData, onSave, onCancel }) {
@@ -25,6 +28,9 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
   const [previewImage, setPreviewImage] = useState(null)
   const [hovering, setHovering] = useState(false)
   const [featureEnabled, setFeatureEnabled] = useState(false)
+  const [emoji, setEmoji] = useState('')
+  const [text, setText] = useState('')
+  const [svg, setSvg] = useState('')
 
   const genId = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
 
@@ -45,12 +51,18 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     setSelectedIcon(currentIconKey)
     setSelectedColor(currentIconColor)
     setPreviewImage(initialData?.icon || null)
+    setEmoji(initialData?.iconEmoji || '')
+    setText(initialData?.iconText || '')
+    setSvg(initialData?.iconSvg || '')
     form.setFieldsValue({
       name: initialData?.name || '',
       iconType: currentIconType,
       iconKey: currentIconKey,
       iconColor: currentIconColor,
       icon: initialData?.icon || null,
+      iconEmoji: initialData?.iconEmoji || '',
+      iconText: initialData?.iconText || '',
+      iconSvg: initialData?.iconSvg || '',
       featureExplain: initialData?.feature?.explain || '',
       featureCmds: initialData?.feature?.cmds || []
     })
@@ -144,11 +156,17 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       }
 
       values.iconType = iconType
+      values.iconColor = selectedColor
       if (iconType === ICON_TYPE_BUILTIN) {
         values.iconKey = selectedIcon
-        values.iconColor = selectedColor
       } else if (iconType === ICON_TYPE_IMAGE) {
         values.icon = previewImage
+      } else if (iconType === ICON_TYPE_EMOJI) {
+        values.iconEmoji = emoji
+      } else if (iconType === ICON_TYPE_TEXT) {
+        values.iconText = text
+      } else if (iconType === ICON_TYPE_SVG) {
+        values.iconSvg = svg
       }
 
       onSave(values)
@@ -164,6 +182,9 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     setSelectedIcon(DEFAULT_ICON_KEY)
     setSelectedColor(DEFAULT_ICON_COLOR)
     setPreviewImage(null)
+    setEmoji('')
+    setText('')
+    setSvg('')
     onCancel()
   }
 
@@ -198,6 +219,9 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
             selectedColor={selectedColor}
             previewImage={previewImage}
             hovering={hovering}
+            emoji={emoji}
+            text={text}
+            svg={svg}
             onIconTypeChange={setIconType}
             onIconChange={(key) => {
               setSelectedIcon(key)
@@ -210,6 +234,18 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
             onImageChange={(base64) => {
               form.setFieldValue('icon', base64)
               setPreviewImage(base64)
+            }}
+            onEmojiChange={(val) => {
+              setEmoji(val)
+              form.setFieldValue('iconEmoji', val)
+            }}
+            onTextChange={(val) => {
+              setText(val)
+              form.setFieldValue('iconText', val)
+            }}
+            onSvgChange={(val) => {
+              setSvg(val)
+              form.setFieldValue('iconSvg', val)
             }}
             onHoverChange={setHovering}
             formInstance={form}
