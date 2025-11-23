@@ -42,7 +42,7 @@ export default function FolderCard({ folder, onClick }) {
               bottom: -2,
               right: -2,
               backgroundColor: 'var(--color-background)',
-              border: `2px solid ${folder.iconColor || 'var(--color-warning)'}`,
+              border: `2px solid ${'var(--color-text-secondary)'}`,
               borderRadius: '50%',
               width: 18,
               height: 18,
@@ -51,7 +51,7 @@ export default function FolderCard({ folder, onClick }) {
               justifyContent: 'center',
               fontSize: 10,
               fontWeight: 600,
-              color: folder.iconColor || 'var(--color-warning)'
+              color: 'var(--color-text-primary)'
             }}
           >
             {itemCount > 99 ? '99+' : itemCount}
