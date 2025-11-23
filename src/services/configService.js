@@ -460,6 +460,14 @@ class ConfigService {
         type: 'flowpilot/folder-export',
         version: '1',
         folderId,
+        name: folder.name,
+        iconType: folder.iconType,
+        icon: folder.icon,
+        iconKey: folder.iconKey,
+        iconText: folder.iconText,
+        iconEmoji: folder.iconEmoji,
+        iconSvg: folder.iconSvg,
+        iconColor: folder.iconColor,
         items: [clonedFolder],
         envVars: this.envVars.filter((v) => envRefs.has(v.name)),
         globalVars: this.globalVars.filter((g) => globalRefs.has(g.key))
@@ -549,7 +557,20 @@ class ConfigService {
       if (workflows.length === 0) return false
 
       const newFolderId = `folder_${Date.now()}`
-      const newFolder = { id: newFolderId, type: 'folder', name: data.name || '导入的文件夹', items: [] }
+      const sourceFolder = Array.isArray(data.items) && data.items[0] && data.items[0].type === 'folder' ? data.items[0] : null
+      const newFolder = {
+        id: newFolderId,
+        type: 'folder',
+        name: data.name || sourceFolder?.name || '导入的文件夹',
+        iconType: data.iconType || sourceFolder?.iconType,
+        icon: data.icon || sourceFolder?.icon,
+        iconKey: data.iconKey || sourceFolder?.iconKey,
+        iconText: data.iconText || sourceFolder?.iconText,
+        iconEmoji: data.iconEmoji || sourceFolder?.iconEmoji,
+        iconSvg: data.iconSvg || sourceFolder?.iconSvg,
+        iconColor: data.iconColor || sourceFolder?.iconColor,
+        items: []
+      }
       const usedIds = new Set(this.getAllWorkflows().map((x) => x.id))
       newFolder.items = workflows.map((wf) => {
         const copied = { ...wf }
