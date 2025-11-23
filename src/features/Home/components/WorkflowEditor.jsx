@@ -63,8 +63,8 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       iconEmoji: initialData?.iconEmoji || '',
       iconText: initialData?.iconText || '',
       iconSvg: initialData?.iconSvg || '',
-      featureExplain: initialData?.feature?.explain || '',
-      featureCmds: initialData?.feature?.cmds || []
+      featureExplain: initialData?.feature?.explain || initialData?.featureExplain || '',
+      featureCmds: initialData?.feature?.cmds || initialData?.featureCmds || []
     })
     const initExec = (initialData?.executors || []).map((e) => ({ id: e.id || genId(), ...e }))
     const initActs = (initialData?.actions || []).map((a) => ({ id: a.id || genId(), ...a }))
@@ -176,6 +176,9 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       } else if (iconType === ICON_TYPE_SVG) {
         values.iconSvg = svg
       }
+
+      delete values.featureExplain
+      delete values.featureCmds
 
       onSave(values)
       form.resetFields()
