@@ -152,11 +152,15 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
             initialData?.feature?.code ||
             `wf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
+          const explainVal =
+            (values.featureExplain ?? initialData?.feature?.explain) ?? values.name
+          const cmdsVal =
+            (values.featureCmds ?? initialData?.feature?.cmds) ?? [explainVal]
           values.feature = {
             enabled: true,
             code: featureCode,
-            explain: values.featureExplain || values.name,
-            cmds: values.featureCmds || []
+            explain: explainVal,
+            cmds: cmdsVal
           }
         } else {
           values.feature = { enabled: false }

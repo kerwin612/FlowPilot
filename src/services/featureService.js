@@ -49,10 +49,11 @@ class FeatureService {
     const explain = feature.explain || workflow.name || '工作流'
 
     // 构建 uTools feature 对象（直接透传 feature 配置）
+    const cmds = Array.isArray(feature.cmds) && feature.cmds.length > 0 ? feature.cmds : [explain]
     const utoolsFeature = {
       code,
       explain,
-      cmds: feature.cmds || [explain]
+      cmds
     }
 
     // 可选：mainHide

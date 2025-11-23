@@ -22,7 +22,8 @@ import {
   DownOutlined,
   ThunderboltOutlined,
   ImportOutlined,
-  ExportOutlined
+  ExportOutlined,
+  ReloadOutlined
 } from '@ant-design/icons'
 import WorkflowEditor from './WorkflowEditor'
 import EnvVarEditor from './EnvVarEditor'
@@ -804,6 +805,22 @@ export default function ConfigManager({ config, onClose }) {
                 options={(profiles || []).map((p) => ({ value: p.id, label: p.name }))}
                 onChange={(val) => configService.setActiveProfile(val)}
               />
+              {activeProfileId === 'default' && (
+                <Popconfirm
+                  title="确定重置默认配置？"
+                  description="将恢复为初始默认内容"
+                  onConfirm={() => {
+                    configService.resetAll()
+                    if (window?.services?.showNotification) {
+                      window.services.showNotification('已重置默认配置')
+                    }
+                  }}
+                  okText="重置"
+                  cancelText="取消"
+                >
+                  <Button danger icon={<ReloadOutlined />} title="重置默认配置" />
+                </Popconfirm>
+              )}
               {profiles?.length > 1 && activeProfileId && activeProfileId !== 'default' && (
                 <Popconfirm
                   title="确定删除当前配置档？"
