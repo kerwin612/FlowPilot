@@ -6,6 +6,7 @@
 
 import { executorRegistry } from './executors/registry'
 import { actionRegistry } from './actions/registry'
+import { conditionRegistry } from './conditions/registry'
 
 // 内置执行器
 import { ParamBuilderExecutor } from './executors/param-builder/index.jsx'
@@ -19,6 +20,11 @@ import { ShowModalAction } from './actions/show-modal.jsx'
 import { WriteClipboardAction } from './actions/write-clipboard.jsx'
 import { BrowserAction } from './actions/browser.jsx'
 import { RedirectPluginAction } from './actions/redirect-plugin.jsx'
+
+import { EnvVarEquals } from './conditions/builtin/env-var-equals.jsx'
+import { ExecutorResultHas } from './conditions/builtin/executor-result-has.jsx'
+import { JsExpressionCondition } from './conditions/builtin/js-expression.jsx'
+import { JsFunctionCondition } from './conditions/builtin/js-function.jsx'
 
 let initialized = false
 
@@ -56,6 +62,20 @@ export function initializeRegistries() {
       actionRegistry.register(def)
     } catch (error) {
       console.error(`[Bootstrap] 动作器注册失败: ${def.key}`, error)
+    }
+  })
+
+  const conditions = [
+    ExecutorResultHas,
+    EnvVarEquals,
+    JsExpressionCondition,
+    JsFunctionCondition
+  ]
+  conditions.forEach((def) => {
+    try {
+      conditionRegistry.register(def)
+    } catch (error) {
+      console.error(`[Bootstrap] 条件插件注册失败: ${def.key}`, error)
     }
   })
 

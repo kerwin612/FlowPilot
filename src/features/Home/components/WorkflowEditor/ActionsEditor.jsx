@@ -1,5 +1,7 @@
 import { memo } from 'react'
 import { Button, Space, Dropdown, Card, Switch } from 'antd'
+import { conditionRegistry } from '../../workflow/conditions/registry'
+import { Select } from 'antd'
 import { PlusOutlined, HolderOutlined } from '@ant-design/icons'
 import {
   DndContext,
@@ -21,12 +23,14 @@ import { actionRegistry } from '../../workflow/actions/registry'
 /**
  * 可排序动作器项
  */
-const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChange }) => {
+const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChange, onConditionChange }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: act.id
   })
   const def = actionRegistry.get(act.key)
   const C = def?.ConfigComponent
+  const condDef = act.condition?.key ? conditionRegistry.get(act.condition.key) : null
+  const CondC = condDef?.ConfigComponent
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -69,6 +73,47 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
           </Space>
         }
       >
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '10px 12px',
+            background: '#fafafa',
+            border: '1px dashed #d9d9d9',
+            borderRadius: 8
+          }}
+        >
+          <Space style={{ width: '100%' }} direction="vertical">
+            <Space align="center">
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', width: 36 }}>
+                条件
+              </span>
+              <Select
+                size="small"
+                style={{ minWidth: 240 }}
+                value={act.condition?.key || 'none'}
+                onChange={(k) => {
+                  if (k === 'none') {
+                    onConditionChange(act.id, undefined)
+                    return
+                  }
+                  const defSel = conditionRegistry.get(k)
+                  const init = defSel?.getDefaultConfig?.() || {}
+                  onConditionChange(act.id, { key: k, enabled: true, config: init })
+                }}
+                options={[{ value: 'none', label: '无条件（直接执行）' }, ...conditionRegistry.all().map((d) => ({ value: d.key, label: d.label }))]}
+              />
+            </Space>
+            {CondC && act.condition?.key && act.condition?.key !== 'none' ? (
+              <div>
+                <CondC
+                  value={act.condition?.config}
+                  onChange={(cfg) => onConditionChange(act.id, { ...act.condition, config: cfg })}
+                />
+              </div>
+            ) : null}
+          </Space>
+        </div>
+
         {C ? (
           <C
             value={act.config}
@@ -95,6 +140,7 @@ export default function ActionsEditor({
   onRemove,
   onToggle,
   onConfigChange,
+  onConditionChange,
   onDragEnd
 }) {
   const sensors = useSensors(
@@ -137,6 +183,7 @@ export default function ActionsEditor({
                 onToggle={onToggle}
                 onRemove={onRemove}
                 onConfigChange={onConfigChange}
+                onConditionChange={onConditionChange}
               />
             ))}
           </Space>

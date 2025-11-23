@@ -101,6 +101,10 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     }
   }
 
+  const updateExecutorCondition = useCallback((id, next) => {
+    setExecutors((prev) => prev.map((e) => (e.id === id ? { ...e, condition: next } : e)))
+  }, [])
+
   const addAction = (key) => {
     const def = actionRegistry.get(key)
     if (!def) return
@@ -128,6 +132,10 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       })
     }
   }
+
+  const updateActionCondition = useCallback((id, next) => {
+    setActions((prev) => prev.map((a) => (a.id === id ? { ...a, condition: next } : a)))
+  }, [])
 
   const handleOk = async () => {
     try {
@@ -261,6 +269,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onRemove={removeExecutor}
                 onToggle={toggleExecutor}
                 onConfigChange={updateExecutorConfig}
+                onConditionChange={updateExecutorCondition}
                 onDragEnd={handleExecutorDragEnd}
               />
             </Form.Item>
@@ -272,6 +281,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onRemove={removeAction}
                 onToggle={toggleAction}
                 onConfigChange={updateActionConfig}
+                onConditionChange={updateActionCondition}
                 onDragEnd={handleActionDragEnd}
               />
             </Form.Item>

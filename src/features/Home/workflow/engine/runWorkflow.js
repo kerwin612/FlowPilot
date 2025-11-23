@@ -1,6 +1,7 @@
 import { createExecutionContext, pushExecutorResult } from './context'
 import { executorRegistry } from '../executors/registry'
 import { actionRegistry } from '../actions/registry'
+import { conditionRegistry } from '../conditions/registry'
 import configService from '../../../../services/configService'
 import { WorkflowCancelError, isCancelError } from './errors'
 import { resolveAll } from '../../../../shared/template/globalVarResolver'
@@ -87,6 +88,32 @@ export async function runComposedWorkflow(workflow, trigger = {}, options = {}) 
         continue
       }
 
+      if (ex.condition && ex.condition.enabled !== false && ex.condition.key) {
+        const condDef = conditionRegistry.get(ex.condition.key)
+        if (!condDef) {
+          const error = new Error(`条件未注册: ${ex.condition.key}`)
+          emitEvent('executor:end', { stepIndex: i, key: ex.key, enabled: true, error })
+          throw error
+        }
+        const condCfg = ex.condition.config || condDef.getDefaultConfig?.() || {}
+        try {
+          const ok = await condDef.evaluate(trigger, context, condCfg)
+          if (!ok) {
+            emitEvent('executor:end', {
+              stepIndex: i,
+              key: ex.key,
+              enabled: true,
+              result: null
+            })
+            pushExecutorResult(context, ex.key, true, null)
+            continue
+          }
+        } catch (error) {
+          emitEvent('executor:end', { stepIndex: i, key: ex.key, enabled: true, error })
+          throw error
+        }
+      }
+
       try {
         const result = await def.execute(trigger, context, cfg, { signal })
         pushExecutorResult(context, ex.key, true, result)
@@ -155,6 +182,30 @@ export async function runComposedWorkflow(workflow, trigger = {}, options = {}) 
           enabled: false
         })
         continue
+      }
+
+      if (act.condition && act.condition.enabled !== false && act.condition.key) {
+        const condDef = conditionRegistry.get(act.condition.key)
+        if (!condDef) {
+          const error = new Error(`条件未注册: ${act.condition.key}`)
+          emitEvent('action:end', { stepIndex: i, key: act.key, enabled: true, error })
+          throw error
+        }
+        const condCfg = act.condition.config || condDef.getDefaultConfig?.() || {}
+        try {
+          const ok = await condDef.evaluate(trigger, context, condCfg)
+          if (!ok) {
+            emitEvent('action:end', {
+              stepIndex: i,
+              key: act.key,
+              enabled: true
+            })
+            continue
+          }
+        } catch (error) {
+          emitEvent('action:end', { stepIndex: i, key: act.key, enabled: true, error })
+          throw error
+        }
       }
 
       try {
