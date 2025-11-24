@@ -13,7 +13,7 @@ const WriteClipboardConfig = ({ value = {}, onChange }) => {
 
   return (
     <TextArea
-      placeholder="要写入剪贴板的文本，可使用变量：例如 {{executor[0].result.value.file}}"
+      placeholder="要写入剪贴板的文本，可使用变量：例如 {{executors[0].result.value.file}}"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onChange({ ...(value || {}), text })}

@@ -12,16 +12,15 @@ function tokenize(expr) {
 }
 
 function mapAlias(root, first) {
-  if (first === 'executor' || first === 'executors') return root.executors
-  if (first === 'env') return root.env
+  if (first === 'executors') return root.executors
+  if (first === 'envs') return root.envs
   if (first === 'vars' || first === 'global') return root.vars
   if (first === 'trigger') return root.trigger
-  if (first === 'values') return root.values
   return root[first]
 }
 
 function aliasNeedsSkip(first) {
-  return ['executor', 'executors', 'env', 'vars', 'global', 'trigger', 'values'].includes(first)
+  return ['executors', 'envs', 'vars', 'global', 'trigger'].includes(first)
 }
 
 export function getByPath(root, expr) {

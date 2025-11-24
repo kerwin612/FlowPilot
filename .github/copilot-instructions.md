@@ -6,8 +6,8 @@ This repo is a uTools plugin built with React + Vite. The UI lives in `src/`, wh
 - UI: React app (Vite) under `src/`. Entry: `src/App.jsx`. The Home feature and workflow editor live in `src/features/Home/*`.
 - Workflow engine (composed mode):
   - Execution flow is “executors → actions” handled by `runComposedWorkflow` in `src/features/Home/workflow/engine/runWorkflow.js`.
-  - Context shape created by `createExecutionContext` in `engine/context.js`: `{ workflow, trigger, env, timestamp, values, executors }`.
-  - Template resolution uses `{{ ... }}` syntax via `engine/compile.js` (aliases: `executor`/`executors`, `env`, `trigger`, `values`). Example: `{{executor[0].result.value.filePath}}`, `{{env.PATH}}`.
+  - Context shape created by `createExecutionContext` in `engine/context.js`: `{ workflow, trigger, envs, timestamp, executors }`.
+  - Template resolution uses `{{ ... }}` syntax via `engine/compile.js` (aliases: `executor`/`executors`, `envs`, `trigger`). Example: `{{executor[0].result.value.filePath}}`, `{{envs.PATH}}`.
   - Registries: `executors/registry.js` and `actions/registry.js` manage pluggable steps. Built-ins are installed once in `workflow/bootstrap.js`.
 - System boundary: UI must not call `window.utools` or `window.services` directly. Use `src/services/*` instead. The bridge is assembled in `public/preload/services.js` and wired to Node modules under `public/preload/**`.
 - uTools wiring: `public/plugin.json` points `main` to `index.html` and `development.main` to `http://localhost:5173`. Dynamic features are synced from workflows via `src/services/featureService.js`.
@@ -15,11 +15,11 @@ This repo is a uTools plugin built with React + Vite. The UI lives in `src/`, wh
 ## Core conventions
 - Service layer contracts:
   - `systemService` wraps uTools and preload APIs: openPath/openExternal, selectPath, clipboard, ubrowser, redirect, and `executeCommand` (bridges to `public/preload/services/workflows/index.js`).
-  - `configService` is the single source of truth for persisted config (tabs, workflows, env vars). It calls `window.services.workflow.*` and provides `subscribe()` for reactive updates.
+  - `configService` is the single source of truth for persisted config (tabs, workflows, envs vars). It calls `window.services.workflow.*` and provides `subscribe()` for reactive updates.
   - `workflowService.execute(workflow, trigger)` enforces `mode === composed` and orchestrates execution with abort support.
 - Step definitions:
   - Executors and actions are plain objects: `{ key, label, getDefaultConfig?, ConfigComponent?, async execute(trigger, context, config, { signal }) }` (see `executors/base.js`, `actions/base.js`). Register via the registries; initialization occurs in `workflow/bootstrap.js`.
-  - Example executor: `executors/command/index.jsx` renders config UI and ultimately calls `systemService.executeCommand({ command, runInBackground, showWindow, env })`.
+  - Example executor: `executors/command/index.jsx` renders config UI and ultimately calls `systemService.executeCommand({ command, runInBackground, showWindow, envs })`.
   - Example action: `actions/open-path.jsx` resolves a path with templates then calls `systemService.openPath(path)`.
 - Events: `runComposedWorkflow` emits lifecycle events via `onEvent(type, data)`: `workflow:start/end`, `executor:start/end`, `action:start/end`, `workflow:cancel`. Prefer consuming this for UI progress instead of internal state.
 - Safety posture: The preload `core/command.js` runs system commands. UI shows risk hints for known dangerous patterns but does not block. Treat command strings as user-provided; no sandbox.
@@ -39,7 +39,7 @@ This repo is a uTools plugin built with React + Vite. The UI lives in `src/`, wh
   2) Export `{ key, label, getDefaultConfig, ConfigComponent, execute }`.
   3) Import and register it in `workflow/bootstrap.js` (use `executorRegistry.register(def)` / `actionRegistry.register(def)`).
   4) Reference by `key` inside a workflow object.
-- Use templates inside configs: `resolveTemplate(config.template, context)` is applied in built-ins; prefer `{{env.VAR}}`, `{{trigger.filePath}}`, `{{executor[0].result.value.xxx}}`.
+- Use templates inside configs: `resolveTemplate(config.template, context)` is applied in built-ins; prefer `{{envs.VAR}}`, `{{trigger.filePath}}`, `{{executor[0].result.value.xxx}}`.
 - Don’t touch `window.services` directly; go through `systemService` and `configService` to keep the Electron/uTools boundary clean and testable.
 
 ## Files to know

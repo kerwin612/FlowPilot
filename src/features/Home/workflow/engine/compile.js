@@ -3,14 +3,13 @@ import { getByPath as sharedGetByPath, getByPathWithTags } from '../../../../sha
 // 模板解析（统一风格）
 // 支持双花括号 {{ ... }} 是规则写法
 // 访问形式：
-//   {{executor[0].result.value.filePath}}
+//   {{executors[0].result.value.filePath}}
 //   {{executors[1].enabled}}
-//   {{env.PATH}}
+//   {{envs.PATH}}
 //   {{vars.API_URL}}                    // 全局变量（通过 key，如有重复取第一个）
 //   {{vars['tag1','tag2'][0]}}          // 通过标签筛选第一个匹配的变量
 //   {{vars['tag1','tag2'].API_URL}}     // 通过标签筛选后再用 key 访问（如有重复取第一个）
 //   {{trigger.filePath}}
-//   {{values.filePath}}
 // 注意：key 可以重复，相同 key 的变量可以通过不同的 tags 区分
 // executor 索引与编辑时列表顺序一致，包含被禁用的项（其 result 可能为 null）。
 export function resolveTemplate(str, context) {
@@ -117,14 +116,13 @@ function getByPath(root, expr) {
       else if (index != null) tokens.push(Number(index))
     })
     const mapAliasLocal = (r, first) => {
-      if (first === 'executor' || first === 'executors') return r.executors
-      if (first === 'env') return r.env
+      if (first === 'executors') return r.executors
+      if (first === 'envs') return r.envs
       if (first === 'vars' || first === 'global') return r.vars
       if (first === 'trigger') return r.trigger
-      if (first === 'values') return r.values
       return r[first]
     }
-    const aliasNeedsSkipLocal = (first) => ['executor', 'executors', 'env', 'vars', 'global', 'trigger', 'values'].includes(first)
+    const aliasNeedsSkipLocal = (first) => ['executors', 'envs', 'vars', 'global', 'trigger'].includes(first)
     let cur = mapAliasLocal(root, tokens[0])
     if (tokens.length && aliasNeedsSkipLocal(tokens[0])) tokens.shift()
     for (let i = 0; i < tokens.length; i++) {

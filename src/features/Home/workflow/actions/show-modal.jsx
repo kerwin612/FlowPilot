@@ -32,7 +32,7 @@ const ShowModalConfig = ({ value = {}, onChange }) => {
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Input
-        placeholder="弹窗标题（可使用变量：{{executor[0].result.value.name}}）"
+        placeholder="弹窗标题（可使用变量：{{executors[0].result.value.name}}）"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={() => onChange({ ...(value || {}), title })}

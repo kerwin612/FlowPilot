@@ -20,7 +20,6 @@ export const ExecutorResultHas = {
   async evaluate(trigger, context, config) {
     const k = String(config?.key || '')
     if (!k) return true
-    const values = context?.values || {}
-    return Object.prototype.hasOwnProperty.call(values, k)
+    return (context?.executors || []).some(executor => Object.prototype.hasOwnProperty.call(executor.result.value, k))
   }
 }

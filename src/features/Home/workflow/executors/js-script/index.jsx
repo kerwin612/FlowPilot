@@ -15,8 +15,8 @@ const { TextArea } = Input
    - async (context) => { ... }
    - new Function('context', 'return ...') // 也支持，但推荐使用常规形式
 2. 模板变量可在脚本中之前先解析 (只对脚本整体的 {{ }} 进行替换)；脚本内部字符串不再二次解析。
-3. 执行时会向函数传递完整 context（包含 executors 列表和已聚合的 values）。
-4. 函数返回的任何值会被包装为 { value: { scriptResult: <返回值> } } 并注入 context.values（若为对象）。
+3. 执行时会向函数传递完整 context（包含 executors 列表等）。
+4. 函数返回的任何值会被包装为 { value: { <返回值> } } 。
 */
 
 const ScriptConfig = ({ value = {}, onChange }) => {

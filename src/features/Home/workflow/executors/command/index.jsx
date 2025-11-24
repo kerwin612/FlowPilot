@@ -66,7 +66,7 @@ const CommandConfig = ({ value = {}, onChange }) => {
       )}
       <Input.TextArea
         rows={4}
-        placeholder={'示例: notepad {{executor[0].result.value.file}} 或 echo {{env.PATH}}'}
+        placeholder={'示例: notepad {{executors[0].result.value.file}} 或 echo {{envs.PATH}}'}
         value={template}
         onChange={(e) => setTemplate(e.target.value)}
         onBlur={() => onChange({ ...(value || {}), template })}
@@ -118,7 +118,7 @@ export const CommandExecutor = {
       command: cmd,
       runInBackground: config.runInBackground || false,
       showWindow: config.showWindow !== false,
-      env: context?.env || {}
+      env: context?.envs || {}
     }
     const execResult = await systemService.executeCommand(shortcutLike, {})
 

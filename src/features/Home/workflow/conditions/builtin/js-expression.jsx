@@ -4,7 +4,7 @@ import { Input } from 'antd'
 const JsExpressionConfig = ({ value = {}, onChange }) => {
   return (
     <Input
-      placeholder="布尔表达式，如: values.count > 0 && trigger.type === 'files'"
+      placeholder="布尔表达式，如: executors.count > 0 && trigger.type === 'files'"
       defaultValue={value.code || ''}
       onBlur={(e) => onChange({ ...(value || {}), code: e.target.value })}
     />

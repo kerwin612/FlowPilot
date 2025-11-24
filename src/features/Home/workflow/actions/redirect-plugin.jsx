@@ -92,8 +92,8 @@ const RedirectPluginConfig = ({ value = {}, onChange }) => {
         <TextArea
           placeholder={
             payloadType === 'text'
-              ? '传递给目标插件的文本内容，可使用模板变量：{{executor[0].result.value.xxx}}'
-              : '传递给目标插件的 JSON 数据，例如：\n{\n  "type": "img",\n  "data": "{{executor[0].result.value.imageBase64}}"\n}\n或\n{\n  "type": "files",\n  "data": "/path/to/file"\n}'
+              ? '传递给目标插件的文本内容，可使用模板变量：{{executors[0].result.value.xxx}}'
+              : '传递给目标插件的 JSON 数据，例如：\n{\n  "type": "img",\n  "data": "{{executors[0].result.value.imageBase64}}"\n}\n或\n{\n  "type": "files",\n  "data": "/path/to/file"\n}'
           }
           value={payload}
           onChange={(e) => setPayload(e.target.value)}

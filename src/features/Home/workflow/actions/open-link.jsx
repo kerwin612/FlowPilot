@@ -10,7 +10,7 @@ const OpenLinkConfig = ({ value = {}, onChange }) => {
   }, [value.url])
   return (
     <Input
-      placeholder="例如 https://example.com/{{executor[0].result.value.id}}"
+      placeholder="例如 https://example.com/{{executors[0].result.value.id}}"
       value={url}
       onChange={(e) => setUrl(e.target.value)}
       onBlur={() => onChange({ ...(value || {}), url })}

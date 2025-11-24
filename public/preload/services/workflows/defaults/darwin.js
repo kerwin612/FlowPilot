@@ -101,7 +101,7 @@ module.exports = [
               key: 'write-clipboard',
               enabled: true,
               config: { 
-                text: '{{executor[0].result.value.scriptResult}}' 
+                text: '{{executors[0].result.value.scriptResult}}' 
               }
             }
           ]
@@ -149,7 +149,7 @@ module.exports = [
                 labelName: '翻译',
                 pluginName: '',
                 featureName: '',
-                payload: '{{executor[0].result.value.text}}',
+                payload: '{{executors[0].result.value.text}}',
                 payloadType: 'text'
               }
             }
@@ -196,7 +196,7 @@ module.exports = [
               key: 'command',
               enabled: true,
               config: { 
-                template: 'open -a TextEdit {{executor[0].result.value.filePath}}' 
+                template: 'open -a TextEdit {{executors[0].result.value.filePath}}' 
               }
             }
           ],
@@ -241,19 +241,19 @@ module.exports = [
                   key: 'show-modal',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'morning'" } },
-                  config: { title: '早上好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n祝你今天精力充沛 ☕` }
+                  config: { title: '早上好', contentType: 'markdown', content: `现在是 {{executors[0].result.value.scriptResult.ts}}\n\n祝你今天精力充沛 ☕` }
                 },
                 {
                   key: 'show-modal',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'afternoon'" } },
-                  config: { title: '下午好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n继续保持效率 💪` }
+                  config: { title: '下午好', contentType: 'markdown', content: `现在是 {{executors[0].result.value.scriptResult.ts}}\n\n继续保持效率 💪` }
                 },
                 {
                   key: 'show-modal',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'evening'" } },
-                  config: { title: '晚上好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n注意休息 🌙` }
+                  config: { title: '晚上好', contentType: 'markdown', content: `现在是 {{executors[0].result.value.scriptResult.ts}}\n\n注意休息 🌙` }
                 }
               ]
             },
@@ -303,13 +303,13 @@ module.exports = [
                   key: 'command',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.scriptResult && context.executors[0].result.value.scriptResult.kind === 'zip'" } },
-                  config: { template: 'tar -xzf {{executor[0].result.value.file}} -C ~/Downloads' }
+                  config: { template: 'tar -xzf {{executors[0].result.value.file}} -C ~/Downloads' }
                 },
                 {
                   key: 'command',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.scriptResult && context.executors[0].result.value.scriptResult.kind === 'text'" } },
-                  config: { template: 'open -a TextEdit {{executor[0].result.value.file}}' }
+                  config: { template: 'open -a TextEdit {{executors[0].result.value.file}}' }
                 }
               ],
               actions: [
@@ -317,13 +317,13 @@ module.exports = [
                   key: 'open-path',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.scriptResult && context.executors[0].result.value.scriptResult.kind === 'image'" } },
-                  config: { path: '{{executor[0].result.value.file}}' }
+                  config: { path: '{{executors[0].result.value.file}}' }
                 },
                 {
                   key: 'show-modal',
                   enabled: true,
                   condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.kind === 'other'" } },
-                  config: { title: '暂不支持的文件类型', contentType: 'markdown', content: `文件: {{executor[0].result.value.file}}\n类型: 其他` }
+                  config: { title: '暂不支持的文件类型', contentType: 'markdown', content: `文件: {{executors[0].result.value.file}}\n类型: 其他` }
                 }
               ]
             },
@@ -375,7 +375,7 @@ module.exports = [
                   key: 'command',
                   enabled: true,
                   config: { 
-                    template: 'curl -s -i https://api.github.com/users/{{executor[0].result.value.username}}',
+                    template: 'curl -s -i https://api.github.com/users/{{executors[0].result.value.username}}',
                     runInBackground: false,
                     showWindow: false
                   }
@@ -465,29 +465,29 @@ module.exports = [
                       a { color: #1890ff; text-decoration: none; }
                       a:hover { text-decoration: underline; }
                     `,
-                    content: `## {{executor[2].result.value.scriptResult.name}} (@{{executor[2].result.value.scriptResult.username}})
+                    content: `## {{executors[2].result.value.scriptResult.name}} (@{{executors[2].result.value.scriptResult.username}})
 
-![Avatar]({{executor[2].result.value.scriptResult.avatar_url}})
+![Avatar]({{executors[2].result.value.scriptResult.avatar_url}})
 
 ### 基本信息
-- **用户名**: {{executor[2].result.value.scriptResult.username}}
-- **昵称**: {{executor[2].result.value.scriptResult.name}}
-- **简介**: {{executor[2].result.value.scriptResult.bio}}
+- **用户名**: {{executors[2].result.value.scriptResult.username}}
+- **昵称**: {{executors[2].result.value.scriptResult.name}}
+- **简介**: {{executors[2].result.value.scriptResult.bio}}
 
 ### 详细资料
-- **位置**: {{executor[2].result.value.scriptResult.location}}
-- **公司**: {{executor[2].result.value.scriptResult.company}}
-- **博客**: {{executor[2].result.value.scriptResult.blog}}
-- **邮箱**: {{executor[2].result.value.scriptResult.email}}
+- **位置**: {{executors[2].result.value.scriptResult.location}}
+- **公司**: {{executors[2].result.value.scriptResult.company}}
+- **博客**: {{executors[2].result.value.scriptResult.blog}}
+- **邮箱**: {{executors[2].result.value.scriptResult.email}}
 
 ### 统计数据
-- **公开仓库**: {{executor[2].result.value.scriptResult.public_repos}} 个
-- **粉丝**: {{executor[2].result.value.scriptResult.followers}} 人
-- **关注**: {{executor[2].result.value.scriptResult.following}} 人
-- **注册时间**: {{executor[2].result.value.scriptResult.created_at}}
+- **公开仓库**: {{executors[2].result.value.scriptResult.public_repos}} 个
+- **粉丝**: {{executors[2].result.value.scriptResult.followers}} 人
+- **关注**: {{executors[2].result.value.scriptResult.following}} 人
+- **注册时间**: {{executors[2].result.value.scriptResult.created_at}}
 
 ---
-[查看 GitHub 主页]({{executor[2].result.value.scriptResult.html_url}})`
+[查看 GitHub 主页]({{executors[2].result.value.scriptResult.html_url}})`
                   }
                 }
               ]

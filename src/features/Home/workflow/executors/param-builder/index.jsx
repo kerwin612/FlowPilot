@@ -210,7 +210,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                   />
                   <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
                     💡 支持模板变量：
-                    {'{{trigger.payload}}, {{trigger.type}}, {{executor[N].result.value.xxx}}'}
+                    {'{{trigger.payload}}, {{trigger.type}}, {{executors[N].result.value.xxx}}'}
                   </div>
                 </div>
               )}
@@ -347,7 +347,10 @@ export const ParamBuilderExecutor = {
       }
     }
 
-    const fromPrev = { ...(context.values || {}) }
+    const lastWithValue = [...(context.executors || [])]
+      .reverse()
+      .find((ex) => ex?.result?.value && typeof ex.result.value === 'object')
+    const fromPrev = lastWithValue?.result?.value || {}
     const fromUser = { ...(trigger.userParams || {}) }
     const initial = { ...defaults, ...fromPrev, ...fromUser }
 

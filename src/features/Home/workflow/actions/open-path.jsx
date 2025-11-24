@@ -44,7 +44,7 @@ const OpenPathConfig = ({ value = {}, onChange }) => {
   return (
     <Space.Compact style={{ width: '100%' }}>
       <Input
-        placeholder="文件或目录路径，可用 {{executor[0].result.value.file}} 变量"
+        placeholder="文件或目录路径，可用 {{executors[0].result.value.file}} 变量"
         value={path}
         onChange={(e) => setPath(e.target.value)}
         onBlur={() => commit(path)}

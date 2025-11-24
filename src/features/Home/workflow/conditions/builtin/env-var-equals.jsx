@@ -28,7 +28,7 @@ export const EnvVarEquals = {
   async evaluate(trigger, context, config) {
     const name = String(config?.name || '')
     const expectRaw = String(config?.value ?? '')
-    const envVal = context?.env ? context.env[name] : undefined
+    const envVal = context?.envs ? context.envs[name] : undefined
     const expect = resolveAll(expectRaw, { vars: context?.vars || {} })
     return String(envVal ?? '') === String(expect)
   }

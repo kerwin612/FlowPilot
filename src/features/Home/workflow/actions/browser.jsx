@@ -13,7 +13,7 @@ const BrowserConfig = ({ value = {}, onChange }) => {
 
   return (
     <TextArea
-      placeholder='JSON 配置，例如: {"url": "https://example.com/{{executor[0].result.value.id}}"}'
+      placeholder='JSON 配置，例如: {"url": "https://example.com/{{executors[0].result.value.id}}"}'
       value={json}
       onChange={(e) => setJson(e.target.value)}
       onBlur={() => onChange({ ...(value || {}), json })}

@@ -12,7 +12,7 @@ const JsFunctionConfig = ({ value = {}, onChange }) => {
   return (
     <TextArea
       rows={6}
-      placeholder={`示例:\n(context) => context.values.count > 0\n\n或\nasync function(context){ return !!context.values.ok }`}
+      placeholder={`示例:\n(context) => context.executors.count > 0\n\n或\nasync function(context){ return !!context.executors[0].result.ok }`}
       value={code}
       onChange={(e) => setCode(e.target.value)}
       onBlur={() => onChange({ ...(value || {}), code })}
