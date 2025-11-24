@@ -1,10 +1,13 @@
 import { Card, Typography, Dropdown } from 'antd'
+import { useRef, useEffect, useState } from 'react'
 import * as Icons from '@ant-design/icons'
 import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
 export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) {
+  const [menuHover, setMenuHover] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   function SvgIcon({ html }) {
     const ref = useRef(null)
     useEffect(() => {
@@ -69,10 +72,25 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) 
                 .filter(et => (et?.enabled !== false) && et?.label && et?.value)
                 .map((et, idx) => ({ key: String(idx), label: et.label, onClick: () => onTrigger?.(et.value) }))
             }}
-            trigger={['click']}
+            trigger={['hover']}
+            onOpenChange={(o) => setMenuOpen(o)}
           >
-            <a style={{ display: 'flex', width: 18, height: 18, borderRadius: '50%', backgroundColor: 'var(--color-background-dark)', alignItems: 'center', justifyContent: 'center', lineHeight: 0, textDecoration: 'none' }}>
-              <Icons.MoreOutlined style={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+            <a
+              onMouseEnter={() => setMenuHover(true)}
+              onMouseLeave={() => setMenuHover(false)}
+              style={{
+                display: 'flex',
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                backgroundColor: (menuHover || menuOpen) ? 'var(--color-background-light)' : 'var(--color-background-dark)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 0,
+                textDecoration: 'none'
+              }}
+            >
+              <Icons.MoreOutlined style={{ fontSize: 12, color: (menuHover || menuOpen) ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }} />
             </a>
           </Dropdown>
         </div>
