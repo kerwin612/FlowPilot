@@ -75,6 +75,9 @@ export default function Home({ enterAction: _enterAction }) {
   const handleWorkflowClick = (workflow) => {
     execute(workflow, {})
   }
+  const handleWorkflowTrigger = (workflow, value) => {
+    execute(workflow, { entryMenuValue: value })
+  }
 
   const renderItem = (item) => {
     if (item.type === 'folder') {
@@ -91,6 +94,7 @@ export default function Home({ enterAction: _enterAction }) {
           workflow={item}
           loading={loadingMap[item.id]}
           onClick={() => handleWorkflowClick(item)}
+          onTrigger={(val) => handleWorkflowTrigger(item, val)}
         />
       </Col>
     )
@@ -200,6 +204,7 @@ export default function Home({ enterAction: _enterAction }) {
                     workflow={item}
                     loading={loadingMap[item.id]}
                     onClick={() => handleWorkflowClick(item)}
+                    onTrigger={(val) => handleWorkflowTrigger(item, val)}
                   />
                 </Col>
               ))}

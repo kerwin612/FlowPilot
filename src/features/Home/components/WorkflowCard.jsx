@@ -1,10 +1,10 @@
-import { Card, Typography } from 'antd'
+import { Card, Typography, Dropdown } from 'antd'
 import * as Icons from '@ant-design/icons'
 import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
-export default function WorkflowCard({ workflow, loading, onClick }) {
+export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) {
   function SvgIcon({ html }) {
     const ref = useRef(null)
     useEffect(() => {
@@ -61,6 +61,20 @@ export default function WorkflowCard({ workflow, loading, onClick }) {
       <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 4 }}>
         {workflow.name || '未命名'}
       </Text>
+      {Array.isArray(workflow.entryTriggers) && workflow.entryTriggers.some(et => (et?.enabled !== false) && et?.label && et?.value) && (
+        <div style={{ position: 'absolute', right: 6, top: 6 }} onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: (workflow.entryTriggers || [])
+                .filter(et => (et?.enabled !== false) && et?.label && et?.value)
+                .map((et, idx) => ({ key: String(idx), label: et.label, onClick: () => onTrigger?.(et.value) }))
+            }}
+            trigger={['click']}
+          >
+            <a><Icons.MoreOutlined /></a>
+          </Dropdown>
+        </div>
+      )}
     </Card>
   )
 }

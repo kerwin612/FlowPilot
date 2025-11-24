@@ -5,6 +5,11 @@ class WorkflowRepository extends BaseRepository {
   constructor(storage) {
     super(storage, 'workflow', 'Workflow')
   }
+  save(entity) {
+    const obj = { ...entity }
+    if (!Array.isArray(obj.entryTriggers)) obj.entryTriggers = []
+    return super.save(obj)
+  }
 }
 
 class FolderRepository extends BaseRepository {

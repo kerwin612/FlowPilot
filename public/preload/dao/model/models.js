@@ -65,6 +65,7 @@ class Workflow {
     this.name = name
     this.mode = mode
     this.icon = null
+    this.entryTriggers = []
     
     if (mode === WorkflowMode.COMMAND) {
       this.cmds = [new Cmd()]

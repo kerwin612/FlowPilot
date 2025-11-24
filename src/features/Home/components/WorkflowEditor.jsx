@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Modal, Form, Input, Collapse, Switch, Space } from 'antd'
+import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { arrayMove } from '@dnd-kit/sortable'
 import IconPicker from './WorkflowEditor/IconPicker'
 import ExecutorsEditor from './WorkflowEditor/ExecutorsEditor'
@@ -31,6 +32,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
   const [emoji, setEmoji] = useState('')
   const [text, setText] = useState('')
   const [svg, setSvg] = useState('')
+  const [entryTriggers, setEntryTriggers] = useState([])
 
   const genId = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
 
@@ -71,6 +73,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     setExecutors(initExec)
     setActions(initActs)
     setFeatureEnabled(initialData?.feature?.enabled || false)
+    setEntryTriggers(Array.isArray(initialData?.entryTriggers) ? initialData.entryTriggers : [])
   }, [open, type, initialData, form])
 
   const addExecutor = (key) => {
@@ -144,6 +147,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       if (type !== ITEM_TYPE_FOLDER) {
         values.executors = executors
         values.actions = actions
+        values.entryTriggers = entryTriggers
 
         // Handle feature configuration
         if (featureEnabled) {
@@ -292,6 +296,95 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onDragEnd={handleActionDragEnd}
               />
             </Form.Item>
+
+            <div
+              style={{
+                background: '#fafafa',
+                border: '1px solid #d9d9d9',
+                borderRadius: '8px',
+                padding: '16px',
+                marginTop: '16px'
+              }}
+            >
+              <Collapse
+                bordered={false}
+                ghost
+                items={[{
+                  key: 'entry-triggers',
+                  label: (
+                    <span style={{ fontWeight: 500 }}>
+                      多入口触发（入口菜单）
+                    </span>
+                  ),
+                  children: (
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <List
+                        split={false}
+                        dataSource={entryTriggers}
+                        locale={{ emptyText: '尚未添加入口' }}
+                        renderItem={(et, idx) => (
+                          <List.Item style={{ borderBottom: 'none' }}>
+                            <Row gutter={8} align="middle" style={{ width: '100%' }}>
+                              <Col span={10}>
+                                <Input
+                                  placeholder="入口名称"
+                                  value={et.label}
+                                  onChange={(e) => {
+                                    const next = [...entryTriggers]
+                                    next[idx] = { ...next[idx], label: e.target.value }
+                                    setEntryTriggers(next)
+                                  }}
+                                  style={{ width: '100%' }}
+                                />
+                              </Col>
+                              <Col span={10}>
+                                <Input
+                                  placeholder="触发类型值"
+                                  value={et.value}
+                                  onChange={(e) => {
+                                    const next = [...entryTriggers]
+                                    next[idx] = { ...next[idx], value: e.target.value }
+                                    setEntryTriggers(next)
+                                  }}
+                                  style={{ width: '100%' }}
+                                />
+                              </Col>
+                              <Col span={2}>
+                                <Switch
+                                  checked={et.enabled !== false}
+                                  onChange={(val) => {
+                                    const next = [...entryTriggers]
+                                    next[idx] = { ...next[idx], enabled: val }
+                                    setEntryTriggers(next)
+                                  }}
+                                />
+                              </Col>
+                              <Col span={2}>
+                                <Button
+                                  danger
+                                  type="link"
+                                  size="small"
+                                  onClick={() => {
+                                    const next = entryTriggers.filter((_, i) => i !== idx)
+                                    setEntryTriggers(next)
+                                  }}
+                                >删除</Button>
+                              </Col>
+                            </Row>
+                          </List.Item>
+                        )}
+                      />
+                      <Button
+                        type="dashed"
+                        icon={<PlusOutlined />}
+                        block
+                        onClick={() => setEntryTriggers([...(entryTriggers || []), { label: '', value: '' }])}
+                      >添加入口</Button>
+                    </Space>
+                  )
+                }]}
+              />
+            </div>
 
             <div
               style={{
