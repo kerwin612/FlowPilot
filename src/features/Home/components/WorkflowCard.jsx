@@ -45,7 +45,7 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) 
     <Card
       hoverable
       onClick={onClick}
-      style={{ width: 100, height: 130, cursor: 'pointer', position: 'relative' }}
+      style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
       styles={{
         body: {
           padding: 16,
@@ -57,8 +57,8 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) 
         }
       }}
     >
-      <div style={{ width: 48, height: 48, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: 0 }}>{getIcon()}</div>
-      <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 4 }}>
+      <div style={{ width: 52, height: 52, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: 0 }}>{getIcon()}</div>
+      <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
         {workflow.name || '未命名'}
       </Text>
       {Array.isArray(workflow.entryTriggers) && workflow.entryTriggers.some(et => (et?.enabled !== false) && et?.label && et?.value) && (
@@ -71,7 +71,9 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) 
             }}
             trigger={['click']}
           >
-            <a><Icons.MoreOutlined /></a>
+            <a style={{ display: 'flex', width: 18, height: 18, borderRadius: '50%', backgroundColor: 'var(--color-background-dark)', alignItems: 'center', justifyContent: 'center', lineHeight: 0, textDecoration: 'none' }}>
+              <Icons.MoreOutlined style={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+            </a>
           </Dropdown>
         </div>
       )}

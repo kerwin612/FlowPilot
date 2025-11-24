@@ -31,6 +31,7 @@ class WorkflowService {
     try {
       // 构建完整的 trigger 对象
       const trigger = {
+        entryMenuValue: triggerData.entryMenuValue || undefined,
         // 动态指令数据（从 uTools onPluginEnter 传入）
         code: triggerData.code || undefined,
         type: triggerData.type || undefined,

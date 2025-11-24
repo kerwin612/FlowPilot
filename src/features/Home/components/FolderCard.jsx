@@ -21,7 +21,7 @@ export default function FolderCard({ folder, onClick }) {
     <Card
       hoverable
       onClick={onClick}
-      style={{ width: 100, height: 130, cursor: 'pointer' }}
+      style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
       styles={{
         body: {
           padding: 16,
@@ -33,32 +33,31 @@ export default function FolderCard({ folder, onClick }) {
         }
       }}
     >
-      <div style={{ position: 'relative', display: 'block', lineHeight: 0 }}>
-        <div style={{ width: 48, height: 48, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{getIcon()}</div>
-        {itemCount > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: -2,
-              right: -2,
-              backgroundColor: 'var(--color-background)',
-              border: `2px solid ${'var(--color-text-secondary)'}`,
-              borderRadius: '50%',
-              width: 18,
-              height: 18,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 10,
-              fontWeight: 600,
-              color: 'var(--color-text-primary)'
-            }}
-          >
-            {itemCount > 99 ? '99+' : itemCount}
-          </div>
-        )}
+      <div style={{ display: 'block', lineHeight: 0 }}>
+        <div style={{ width: 52, height: 52, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{getIcon()}</div>
       </div>
-      <Text ellipsis={{ tooltip: folder.name }} style={{ fontSize: 13, display: 'block', marginTop: 4 }}>
+      {itemCount > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            backgroundColor: 'var(--color-background-dark)',
+            borderRadius: '50%',
+            width: 18,
+            height: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 10,
+            fontWeight: 600,
+            color: 'var(--color-text-primary)'
+          }}
+        >
+          {itemCount > 99 ? '99+' : itemCount}
+        </div>
+      )}
+      <Text ellipsis={{ tooltip: folder.name }} style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
         {folder.name || '未命名文件夹'}
       </Text>
     </Card>
