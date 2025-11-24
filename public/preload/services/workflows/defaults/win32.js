@@ -48,6 +48,14 @@ module.exports = [
           iconType: 'builtin',
           iconKey: 'ClockCircleOutlined',
           iconColor: '#fa8c16',
+          entryTriggers: [
+            { label: 'YYYY-DD-MM', value: '1', enabled: true },
+            { label: 'YYYY-DD-MM HH:mm:SS', value: '2', enabled: true },
+            { label: 'YYYY/DD/MM', value: '3', enabled: true },
+            { label: 'YYYY/DD/MM HH:mm:SS', value: '4', enabled: true },
+            { label: '十位时间戳', value: '5', enabled: true },
+            { label: '十三位时间戳', value: '6', enabled: true }
+          ],
           feature: {
             enabled: true,
             code: 'wf-copy-timestamp',
@@ -61,25 +69,32 @@ module.exports = [
               enabled: true,
               config: {
                 code: `(context) => {
-  // 获取当前时间戳（毫秒）
-  const timestamp = Date.now();
-  // 格式化为可读的日期时间
-  const date = new Date(timestamp);
-  const formatted = date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-  
-  return {
-    timestamp: timestamp,
-    formatted: formatted,
-    iso: date.toISOString()
-  };
+  const val = String(context.trigger.entryMenuValue || '');
+  const ts13 = Date.now();
+  const ts10 = Math.floor(ts13 / 1000);
+  const d = new Date(ts13);
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const HH = pad(d.getHours());
+  const MM = pad(d.getMinutes());
+  const SS = pad(d.getSeconds());
+
+  const fmt1 = yyyy + '-' + dd + '-' + mm;
+  const fmt2 = yyyy + '-' + dd + '-' + mm + ' ' + HH + ':' + MM + ':' + SS;
+  const fmt3 = yyyy + '/' + dd + '/' + mm;
+  const fmt4 = yyyy + '/' + dd + '/' + mm + ' ' + HH + ':' + MM + ':' + SS;
+
+  let output = fmt2;
+  if (val === '1') output = fmt1;
+  else if (val === '2') output = fmt2;
+  else if (val === '3') output = fmt3;
+  else if (val === '4') output = fmt4;
+  else if (val === '5') output = String(ts10);
+  else if (val === '6') output = String(ts13);
+
+  return { value: { scriptResult: output, ts10, ts13, fmt1, fmt2, fmt3, fmt4 } };
 }`
               }
             }
@@ -89,7 +104,7 @@ module.exports = [
               key: 'write-clipboard',
               enabled: true,
               config: { 
-                text: '时间戳: {{executor[0].result.value.scriptResult.timestamp}}\n格式化: {{executor[0].result.value.scriptResult.formatted}}\nISO: {{executor[0].result.value.scriptResult.iso}}' 
+                text: '{{executor[0].result.value.scriptResult}}' 
               }
             }
           ]
@@ -206,6 +221,122 @@ module.exports = [
           iconKey: 'FolderOutlined',
           iconColor: '#faad14',
           items: [
+            {
+              type: 'workflow',
+              id: 'demo-time-greeting',
+              name: '智能问候（按时段）',
+              mode: 'composed',
+              iconType: 'builtin',
+              iconKey: 'SmileOutlined',
+              iconColor: '#eb2f96',
+              executors: [
+                {
+                  key: 'js-script',
+                  enabled: true,
+                  config: {
+                    code: `(context) => {
+  const d = new Date();
+  const hour = d.getHours();
+  let period = 'evening';
+  if (hour >= 5 && hour < 12) period = 'morning';
+  else if (hour >= 12 && hour < 18) period = 'afternoon';
+  const pad = (n) => String(n).padStart(2, '0');
+  const ts = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(hour) + ':' + pad(d.getMinutes());
+  return { value: { scriptResult: { hour, period, ts } } };
+}`
+                  }
+                }
+              ],
+              actions: [
+                {
+                  key: 'show-modal',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'morning'" } },
+                  config: { title: '早上好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n祝你今天精力充沛 ☕` }
+                },
+                {
+                  key: 'show-modal',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'afternoon'" } },
+                  config: { title: '下午好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n继续保持效率 💪` }
+                },
+                {
+                  key: 'show-modal',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors[0].result.value.scriptResult.period === 'evening'" } },
+                  config: { title: '晚上好', contentType: 'markdown', content: `现在是 {{executor[0].result.value.scriptResult.ts}}\n\n注意休息 🌙` }
+                }
+              ]
+            },
+            {
+              type: 'workflow',
+              id: 'demo-file-smart-handler',
+              name: '智能处理输入（文件）',
+              mode: 'composed',
+              iconType: 'builtin',
+              iconKey: 'BranchesOutlined',
+              iconColor: '#2f54eb',
+              feature: {
+                enabled: true,
+                code: 'wf-smart-file',
+                explain: '按文件类型分支：zip→解压、文本→记事本、图片→预览',
+                cmds: [
+                  {
+                    type: 'files',
+                    label: '智能处理',
+                    fileType: 'file',
+                    match: '/.*/',
+                    minLength: 1,
+                    maxLength: 10
+                  }
+                ]
+              },
+              executors: [
+                {
+                  key: 'js-script',
+                  enabled: true,
+                  config: {
+                    code: `(context) => {
+  const files = (context.trigger && context.trigger.payload) || [];
+  const first = files[0] || {};
+  const path = first.path || '';
+  const lower = path.toLowerCase();
+  const isZip = /\.(zip|tar\.gz|tgz|rar)$/i.test(lower);
+  const isText = /\.(txt|md|json|log)$/i.test(lower);
+  const isImage = /\.(png|jpg|jpeg|gif|bmp|svg)$/i.test(lower);
+  return { value: { file: path, kind: isZip ? 'zip' : (isText ? 'text' : (isImage ? 'image' : 'other')) } };
+}`
+                  }
+                },
+                {
+                  key: 'command',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.kind === 'zip'" } },
+                  config: { template: 'tar -xzf {{executor[0].result.value.file}} -C %TEMP%', runInBackground: false, showWindow: false }
+                },
+                {
+                  key: 'command',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.kind === 'text'" } },
+                  config: { template: 'notepad {{executor[0].result.value.file}}', runInBackground: true }
+                }
+              ],
+              actions: [
+                {
+                  key: 'open-path',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.kind === 'image'" } },
+                  config: { path: '{{executor[0].result.value.file}}' }
+                },
+                {
+                  key: 'show-modal',
+                  enabled: true,
+                  condition: { key: 'js-expression', enabled: true, config: { code: "context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.kind === 'other'" } },
+                  config: { title: '暂不支持的文件类型', contentType: 'markdown', content: `文件: {{executor[0].result.value.file}}\n类型: 其他` }
+                }
+              ]
+            },
+            
             {
               type: 'workflow',
               id: 'demo-create-file',
