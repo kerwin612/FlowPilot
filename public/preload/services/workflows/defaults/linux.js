@@ -39,6 +39,104 @@ module.exports = [
         },
         {
           type: 'workflow',
+          id: 'workflow_http_requester',
+          name: 'HTTP Requester',
+          mode: 'composed',
+          iconType: 'text',
+          iconKey: 'ImportOutlined',
+          iconColor: '#1890ff',
+          executors: [
+            {
+              id: 'ex_param_builder',
+              key: 'param-builder',
+              enabled: true,
+              config: {
+                cancelable: true,
+                params: [
+                  { name: 'url', label: '接口地址', type: 'text', required: true, placeholder: ' `https://api.example.com/path` ' },
+                  { name: 'method', label: 'HTTP 方法', type: 'select', required: true, options: ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'], default: 'GET' },
+                  { name: 'headers', label: '请求头', type: 'key-value', required: false, description: '键：Header 名称；值：Header 值（支持多值）' },
+                  { name: 'query', label: '查询参数', type: 'key-value', required: false, description: '键：Query 名称；值：Query 值（支持多值）' },
+                  { name: 'authType', label: '认证类型', type: 'select', required: true, options: ['none','bearer','basic'], default: 'none' },
+                  { name: 'authToken', label: 'Bearer Token', type: 'text', required: false, visibleWhen: "values.authType==='bearer'" },
+                  { name: 'authUser', label: 'Basic 用户名', type: 'text', required: false, visibleWhen: "values.authType==='basic'" },
+                  { name: 'authPass', label: 'Basic 密码', type: 'password', required: false, visibleWhen: "values.authType==='basic'" },
+                  { name: 'bodyType', label: '请求体类型', type: 'select', required: true, options: ['none','json','text','form','multipart'], default: 'none' },
+                  { name: 'bodyJson', label: 'JSON 请求体', type: 'json', required: false, visibleWhen: "values.bodyType==='json'" },
+                  { name: 'bodyText', label: '文本请求体', type: 'textarea', required: false, visibleWhen: "values.bodyType==='text'" },
+                  { name: 'formData', label: '表单请求体 (x-www-form-urlencoded)', type: 'key-value', required: false, visibleWhen: "values.bodyType==='form'" },
+                  { name: 'multipartData', label: 'Multipart 请求体 (文件/文本)', type: 'key-file', required: false, visibleWhen: "values.bodyType==='multipart'", description: '每行一个键，值类型可选“文件/文本”；文件会生成 -F key=@path' },
+                  { name: 'followRedirects', label: '跟随重定向 (-L)', type: 'switch', required: false, default: true },
+                  { name: 'timeout', label: '总超时 (秒)', type: 'number', required: false },
+                  { name: 'connectTimeout', label: '连接超时 (秒)', type: 'number', required: false },
+                  { name: 'insecureTLS', label: '忽略证书 (-k)', type: 'switch', required: false },
+                  { name: 'proxy', label: '代理 (-x)', type: 'text', required: false },
+                  { name: 'prettyJson', label: 'JSON 响应美化显示', type: 'switch', required: false, default: true }
+                ]
+              }
+            },
+            {
+              id: 'ex_build_curl',
+              key: 'js-script',
+              enabled: true,
+              config: {
+                code: "(context) => {\n\tvar v = (context.executors[0] && context.executors[0].result && context.executors[0].result.value) || {};\n\n\tfunction clean(u) {\n\t\treturn String(u || '').replace(/[\\u200b-\\u200d\\uFEFF]/g, '').replace(/[\\u00A0]/g, '').replace(/[\\`\\\"\\']/g, '').replace(/^\\s+|\\s+$/g, '')\n\t}\n\n\tfunction kv(o) {\n\t\tvar r = [];\n\t\tfor (var k in (o || {})) {\n\t\t\tvar val = o[k];\n\t\t\tif (Array.isArray(val)) {\n\t\t\t\tfor (var i = 0; i < val.length; i++) r.push([k, String(val[i])])\n\t\t\t} else if (val && typeof val === 'object' && val.__file__) {\n\t\t\t\tr.push([k, {\n\t\t\t\t\t__file__: String(val.__file__)\n\t\t\t\t}])\n\t\t\t} else if (val != null) {\n\t\t\t\tr.push([k, String(val)])\n\t\t\t}\n\t\t}\n\t\treturn r\n\t}\n\n\tfunction dq(s) {\n\t\treturn '\"' + String(s).replace(/\"/g, '\\\\\"') + '\"'\n\t}\n\tvar url = clean(v.url);\n\tvar method = String(v.method || 'GET').toUpperCase();\n\tvar qPairs = kv(v.query || {}).filter(function(p) {\n\t\treturn typeof p[1] === 'string'\n\t});\n\tvar qs = qPairs.length ? qPairs.map(function(p) {\n\t\treturn encodeURIComponent(p[0]) + '=' + encodeURIComponent(p[1])\n\t}).join('&') : '';\n\tvar finalUrl = qs ? (url + (url.indexOf('?') >= 0 ? '&' : '?') + qs) : url;\n\tvar parts = ['curl', '-i', '-sS', '-X', method, dq(finalUrl)];\n\tif (!!v.followRedirects) parts.push('-L');\n\tvar t = Number(v.timeout || 0) || 0;\n\tif (t > 0) parts.push('--max-time', String(t));\n\tvar ct = Number(v.connectTimeout || 0) || 0;\n\tif (ct > 0) parts.push('--connect-timeout', String(ct));\n\tif (!!v.insecureTLS) parts.push('-k');\n\tvar proxy = String(v.proxy || '').trim();\n\tif (proxy) parts.push('-x', dq(proxy));\n\tvar authType = String(v.authType || 'none');\n\tvar authToken = String(v.authToken || '').trim();\n\tvar authUser = String(v.authUser || '').trim();\n\tvar authPass = String(v.authPass || '');\n\tif (authType === 'basic' && authUser) parts.push('-u', dq(authUser + ':' + authPass));\n\tif (authType === 'bearer' && authToken) parts.push('-H', dq('Authorization: Bearer ' + authToken));\n\tvar headers = v.headers || {};\n\tObject.keys(headers).forEach(function(k) {\n\t\tvar hv = headers[k];\n\t\t(Array.isArray(hv) ? hv : [hv]).forEach(function(x) {\n\t\t\tif (x != null) parts.push('-H', dq(k + ': ' + String(x)))\n\t\t})\n\t});\n\tvar bt = String(v.bodyType || 'none');\n\tif (method !== 'GET' && method !== 'HEAD') {\n\t\tif (bt === 'json') {\n\t\t\tparts.push('-H', dq('Content-Type: application/json'));\n\t\t\tparts.push('--data', dq(JSON.stringify(v.bodyJson || {})))\n\t\t} else if (bt === 'text') {\n\t\t\tparts.push('--data', dq(String(v.bodyText || '')))\n\t\t} else if (bt === 'form') {\n\t\t\tkv(v.formData || {}).filter(function(p) {\n\t\t\t\treturn typeof p[1] === 'string'\n\t\t\t}).forEach(function(p) {\n\t\t\t\tparts.push('--data-urlencode', dq(p[0] + '=' + p[1]))\n\t\t\t});\n\t\t\tparts.push('-H', dq('Content-Type: application/x-www-form-urlencoded'))\n\t\t} else if (bt === 'multipart') {\n\t\t\tkv(v.multipartData || {}).forEach(function(p) {\n\t\t\t\tvar k = p[0],\n\t\t\t\t\tval = p[1];\n\t\t\t\tif (typeof val === 'object' && val.__file__) {\n\t\t\t\t\tparts.push('-F', dq(k + '=@' + val.__file__))\n\t\t\t\t} else {\n\t\t\t\t\tparts.push('-F', dq(k + '=' + val))\n\t\t\t\t}\n\t\t\t})\n\t\t}\n\t}\n\tparts.push('--write-out', dq('__FP_META__:' + '%{http_code}|%{content_type}|%{time_total}|%{size_download}'));\n\tvar curl = parts.join(' ');\n\treturn {\n\t\tvalue: {\n\t\t\tcurl: curl,\n\t\t\tfinalUrl: finalUrl,\n\t\t\tmethod: method,\n\t\t\tprettyJson: !!v.prettyJson\n\t\t}\n\t};\n}"
+              }
+            },
+            {
+              id: 'ex_run_curl',
+              key: 'command',
+              enabled: true,
+              config: { template: '{{executors[1].result.value.curl}}', runInBackground: false, showWindow: false },
+              condition: { key: 'js-expression', enabled: true, config: { code: "!trigger.entryMenuValue || trigger.entryMenuValue === 'run' || trigger.entryMenuValue === 'copy-body'" } }
+            },
+            {
+              id: 'ex_parse',
+              key: 'js-script',
+              enabled: true,
+              config: {
+                code: "(context) => {\n\tvar raw = String((context.executors[2] && context.executors[2].result && context.executors[2].result.value && context.executors[2].result.value.execResult && context.executors[2].result.value.execResult.result) || '');\n\tvar marker = '__FP_META__:';\n\tvar mIdx = raw.lastIndexOf(marker);\n\tvar meta = {\n\t\tcode: '',\n\t\tcontentType: '',\n\t\ttimeTotal: '',\n\t\tsizeDownload: ''\n\t};\n\tvar payload = raw;\n\tif (mIdx >= 0) {\n\t\tvar tail = raw.substring(mIdx + marker.length);\n\t\tvar firstLine = tail.split(/\\r?\\n/)[0] || '';\n\t\tvar toks = firstLine.split('|');\n\t\tmeta = {\n\t\t\tcode: toks[0] || '',\n\t\t\tcontentType: toks[1] || '',\n\t\t\ttimeTotal: toks[2] || '',\n\t\t\tsizeDownload: toks[3] || ''\n\t\t};\n\t\tpayload = raw.substring(0, mIdx);\n\t}\n\n\tfunction splitHeaderBody(s) {\n\t\tvar parts = s.split(/\\r?\\n\\r?\\n/);\n\t\tif (parts.length < 2) return {\n\t\t\theadersText: '',\n\t\t\tbodyText: s\n\t\t};\n\t\tvar bodyText = parts[parts.length - 1];\n\t\tvar headersText = parts.slice(0, parts.length - 1).join('\\n\\n').split(/\\r?\\n\\r?\\n/).slice(-1)[0] || '';\n\t\treturn {\n\t\t\theadersText: headersText,\n\t\t\tbodyText: bodyText\n\t\t};\n\t}\n\tvar hb = splitHeaderBody(payload);\n\n\tfunction parseStatus(t) {\n\t\tvar lines = t.split(/\\r?\\n/).filter(Boolean);\n\t\tvar statusLine = null;\n\t\tfor (var i = lines.length - 1; i >= 0; i--) {\n\t\t\tif (/^HTTP\\//i.test(lines[i])) {\n\t\t\t\tstatusLine = lines[i];\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tvar m = statusLine ? statusLine.match(/HTTP\\/\\d+\\.\\d+\\s+(\\d+)/) : null;\n\t\treturn m ? m[1] : ''\n\t}\n\n\tfunction parseHeaders(t) {\n\t\tvar lines = t.split(/\\r?\\n/).filter(Boolean);\n\t\tvar obj = {};\n\t\tfor (var i = 0; i < lines.length; i++) {\n\t\t\tvar line = lines[i];\n\t\t\tif (/^HTTP\\//i.test(line)) continue;\n\t\t\tvar j = line.indexOf(':');\n\t\t\tif (j > 0) {\n\t\t\t\tvar k = line.slice(0, j).trim();\n\t\t\t\tvar v = line.slice(j + 1).trim();\n\t\t\t\tif (obj[k]) {\n\t\t\t\t\tif (Array.isArray(obj[k])) obj[k].push(v);\n\t\t\t\t\telse obj[k] = [obj[k], v];\n\t\t\t\t} else obj[k] = v;\n\t\t\t}\n\t\t}\n\t\treturn obj\n\t}\n\tvar headersObj = parseHeaders(hb.headersText);\n\tif (!meta.code) {\n\t\tmeta.code = parseStatus(hb.headersText) || ''\n\t}\n\tif (!meta.contentType) {\n\t\tmeta.contentType = String(headersObj['Content-Type'] || '')\n\t}\n\tif (!meta.sizeDownload) {\n\t\ttry {\n\t\t\tif (typeof TextEncoder !== 'undefined') {\n\t\t\t\tmeta.sizeDownload = String(new TextEncoder().encode(hb.bodyText).length)\n\t\t\t} else {\n\t\t\t\tmeta.sizeDownload = String(unescape(encodeURIComponent(hb.bodyText)).length)\n\t\t\t}\n\t\t} catch (e) {\n\t\t\tmeta.sizeDownload = ''\n\t\t}\n\t}\n\treturn {\n\t\tvalue: {\n\t\t\tmeta: meta,\n\t\t\theaders: headersObj,\n\t\t\tbody: hb.bodyText\n\t\t}\n\t};\n}"
+              }
+            }
+          ],
+          actions: [
+            {
+              id: 'act_show',
+              key: 'show-modal',
+              enabled: true,
+              config: {
+                title: 'HTTP 请求结果',
+                contentType: 'markdown',
+                content: '## cURL 命令\n```bash\n{{executors[1].result.value.curl}}\n```\n\n## 响应状态\n- URL: {{executors[1].result.value.finalUrl}}\n- 方法: {{executors[1].result.value.method}}\n- 状态码: {{executors[3].result.value.meta.code}}\n- Content-Type: {{executors[3].result.value.meta.contentType}}\n- 耗时: {{executors[3].result.value.meta.timeTotal}}s\n- 下载大小: {{executors[3].result.value.meta.sizeDownload}} bytes\n\n## 响应头\n```json\n{{executors[3].result.value.headers}}\n```\n\n## 响应体\n```text\n{{executors[3].result.value.body}}\n```'
+              },
+              condition: { key: 'js-expression', enabled: true, config: { code: "!trigger.entryMenuValue || trigger.entryMenuValue === 'run'" } }
+            },
+            {
+              id: 'act_copy_cmd',
+              key: 'write-clipboard',
+              enabled: true,
+              config: { text: '{{executors[1].result.value.curl}}' },
+              condition: { key: 'js-expression', enabled: true, config: { code: "!!trigger.entryMenuValue && trigger.entryMenuValue === 'copy'" } }
+            },
+            {
+              id: 'act_copy_body',
+              key: 'write-clipboard',
+              enabled: true,
+              config: { text: '{{executors[3].result.value.body}}' },
+              condition: { key: 'js-expression', enabled: true, config: { code: "!!trigger.entryMenuValue && trigger.entryMenuValue === 'copy-body'" } }
+            }
+          ],
+          entryTriggers: [
+            { label: '生成并执行 cURL', value: 'run' },
+            { label: '仅生成命令 cURL', value: 'copy' },
+            { label: '执行后复制响应体', value: 'copy-body' }
+          ],
+          feature: { enabled: true, code: 'wf-1764053826156-2o2mx', explain: 'HTTP Requester', cmds: ['HTTP Requester'] },
+          iconText: 'HTTP',
+          updatedAt: 1764054316916
+        },
+        {
+          type: 'workflow',
           id: 'demo-param-cmd',
           name: '编辑文件',
           mode: 'composed',
