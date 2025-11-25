@@ -44,7 +44,10 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
     { label: '下拉选择', value: 'select' },
     { label: '多选下拉', value: 'multi-select' },
     { label: '文件', value: 'file' },
-    { label: '文件夹', value: 'directory' }
+    { label: '文件夹', value: 'directory' },
+    { label: '键值列表', value: 'key-value' },
+    { label: 'JSON', value: 'json' },
+    { label: '文件键值列表', value: 'key-file' }
   ]
 
   const needsOptions = (type) => ['radio', 'checkbox', 'select', 'multi-select'].includes(type)
@@ -197,6 +200,16 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                 }}
               />
 
+              <Input
+                placeholder="显隐条件（可选，示例：values.bodyType==='json'）"
+                value={p.visibleWhen || ''}
+                onChange={(e) => {
+                  const cp = [...localParams]
+                  cp[i] = { ...cp[i], visibleWhen: e.target.value }
+                  update(cp)
+                }}
+              />
+
               {p.type !== 'switch' && p.type !== 'boolean' && (
                 <div>
                   <Input
@@ -292,6 +305,37 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     style={{ fontFamily: 'monospace', fontSize: 12 }}
                   />
                 </div>
+              )}
+
+              {p.type === 'key-value' && (
+                <Space>
+                  <span>值支持多值:</span>
+                  <Switch
+                    checked={!!p.valueMultiple}
+                    onChange={(val) => {
+                      const cp = [...localParams]
+                      cp[i] = { ...cp[i], valueMultiple: val }
+                      update(cp)
+                    }}
+                  />
+                </Space>
+              )}
+
+              {p.type === 'key-value' && (
+                <Space>
+                  <span>值类型:</span>
+                  <Select
+                    mode="multiple"
+                    value={p.valueKinds || []}
+                    onChange={(vals) => {
+                      const cp = [...localParams]
+                      cp[i] = { ...cp[i], valueKinds: vals }
+                      update(cp)
+                    }}
+                    style={{ minWidth: 200 }}
+                    options={[{ value: 'text', label: '文本' }, { value: 'file', label: '文件' }]}
+                  />
+                </Space>
               )}
             </Space>
           </Panel>
@@ -402,6 +446,37 @@ export const ParamBuilderExecutor = {
       )
     })
 
-    return { value: values }
+    const normalized = { ...values }
+    for (const p of config.params || []) {
+      const name = p.name
+      const t = p.type || 'text'
+      const v = normalized[name]
+      if (t === 'key-value' || t === 'key-file') {
+        const arr = Array.isArray(v) ? v : []
+        const obj = {}
+        for (const item of arr) {
+          const k = String(item?.key || '').trim()
+          if (!k) continue
+          const kind = String(item?.kind || 'text')
+          const val = item?.value
+          if (Array.isArray(val)) {
+            obj[k] = val.filter((x) => String(x).length > 0).map((x) => String(x))
+          } else if (kind === 'file') {
+            obj[k] = { __file__: String(val || '') }
+          } else {
+            obj[k] = val != null ? val : ''
+          }
+        }
+        normalized[name] = obj
+      } else if (t === 'json') {
+        if (typeof v === 'string') {
+          try {
+            normalized[name] = JSON.parse(v)
+          } catch {}
+        }
+      }
+    }
+
+    return { value: normalized }
   }
 }
