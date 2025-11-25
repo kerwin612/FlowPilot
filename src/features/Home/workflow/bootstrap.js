@@ -12,6 +12,7 @@ import { conditionRegistry } from './conditions/registry'
 import { ParamBuilderExecutor } from './executors/param-builder/index.jsx'
 import { CommandExecutor } from './executors/command/index.jsx'
 import { ScriptExecutor } from './executors/js-script/index.jsx'
+import { EnvPatchExecutor } from './executors/env-patch/index.jsx'
 
 // 内置动作器
 import { OpenLinkAction } from './actions/open-link.jsx'
@@ -39,7 +40,7 @@ export function initializeRegistries() {
   }
 
   // 注册所有内置执行器
-  const executors = [ParamBuilderExecutor, CommandExecutor, ScriptExecutor]
+  const executors = [ParamBuilderExecutor, CommandExecutor, ScriptExecutor, EnvPatchExecutor]
   executors.forEach((def) => {
     try {
       executorRegistry.register(def)
