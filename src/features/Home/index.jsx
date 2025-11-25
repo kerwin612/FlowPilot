@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { SettingOutlined, GithubOutlined, ShareAltOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
@@ -150,12 +150,11 @@ export default function Home({ enterAction: _enterAction }) {
             items={tabItems}
             tabBarExtraContent={{
               right: (
-                <Button
-                  type="text"
-                  title="配置管理"
-                  icon={<SettingOutlined />}
-                  onClick={() => setShowConfigManager(true)}
-                />
+                <Space>
+                  <Button type="text" title="项目主页" icon={<GithubOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot')} />
+                  <Button type="text" title="查阅/分享工作流" icon={<ShareAltOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot/issues/1')} />
+                  <Button type="text" title="配置管理" icon={<SettingOutlined />} onClick={() => setShowConfigManager(true)} />
+                </Space>
               )
             }}
           />
