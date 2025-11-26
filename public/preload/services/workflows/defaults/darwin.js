@@ -39,6 +39,23 @@ module.exports = [
         },
         {
           type: 'workflow',
+          id: 'workflow_copy_local_ip_darwin',
+          name: '复制本机 IP',
+          mode: 'composed',
+          iconType: 'builtin',
+          iconKey: 'WifiOutlined',
+          iconColor: '#3f8cff',
+          feature: { enabled: true, code: 'wf-copy-ip-darwin', explain: '获取并展示本机 IPv4（每行可独立复制，常规地址置顶）', cmds: ['复制IP','copy ip','ip'] },
+          executors: [
+            { id: 'exec_run_detail', key: 'command', enabled: true, config: { template: 'sh -c "ip -o -4 addr show 2>/dev/null | awk \'{print $2, $4}\' || ifconfig 2>/dev/null | awk \'/inet /{print $1, $2}\'"', runInBackground: false, showWindow: false } },
+            { id: 'exec_format_html', key: 'js-script', enabled: true, config: { code: `(context) => {\n  var raw = String((context.executors && context.executors[0] && context.executors[0].result && context.executors[0].result.value && context.executors[0].result.value.execResult && context.executors[0].result.value.execResult.result) || '').trim();\n  var lines = raw.split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean);\n  var records = [];\n  lines.forEach(function(l){ var toks=l.split(/\s+/); if(toks.length>=2){ var ifname=toks[0]; var addr=toks[1]; var m=addr.match(/((?:\d{1,3}\.){3}\d{1,3})(?:\/(\d+))?/); if(m){ records.push({ ip:m[1], prefix:m[2]||'', ifname:ifname }); } } });\n  var seen=Object.create(null); var uniq=[]; records.forEach(function(r){ if(!seen[r.ip]){ seen[r.ip]=true; uniq.push(r); } });\n  uniq.sort(function(a,b){ var A=!/^169\.254\./.test(a.ip), B=!/^169\.254\./.test(b.ip); return (A===B)?0:(A?-1:1); });\n  var style = '<style>.fp-wrap{display:flex;flex-direction:column;gap:10px}.fp-tip{color:#595959;font-size:13px;margin-bottom:4px}.fp-list{max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.fp-card{border:1px solid #f0f0f0;border-radius:12px;padding:10px 12px;background:#fff}.fp-chip{display:inline-block;padding:6px 12px;border-radius:16px;background:#e6f4ff;border:1px solid #91caff;color:#0958d9;font-size:13px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\"Courier New\\", monospace;cursor:pointer;user-select:none}.fp-chip.link{background:#f5f5f5;border-color:#d9d9d9;color:#666}.fp-meta{margin-top:6px;color:#6b7280;font-size:12px;font-family:system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial}</style>';\n  var rows = uniq.map(function(r){ var linklocal=/^169\\.254\./.test(r.ip); var chipCls='fp-chip'+(linklocal?' link':''); var meta=r.ifname+(r.prefix?(' · /'+r.prefix):''); return '<div class=\\'fp-card\\'><span class=\\''+chipCls+'\\' data-fp-action=\\'copy\\' data-fp-arg=\\''+r.ip+'\\' title=\\''+meta.replace(/\"/g,'')+'\\'>'+r.ip+'</span><div class=\\'fp-meta\\'>'+meta+'</div></div>'; }).join('');\n  var html = style + '<div class=\\'fp-wrap\\'><div class=\\'fp-tip\\'>点击 IP 标签可复制 · 显示网卡/前缀（常规地址优先）</div><div class=\\'fp-list\\'>'+rows+'</div></div>';\n  return { value: { html: html, list: uniq } };\n}` } }
+          ],
+          actions: [
+            { id: 'act_modal_ip_html', key: 'show-modal', enabled: true, config: { title: '本机 IPv4（macOS）', contentType: 'html', customStyles: '.fp-wrap{display:flex;flex-direction:column;gap:10px}.fp-tip{color:#595959;font-size:13px;margin-bottom:4px}.fp-list{max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.fp-card{border:1px solid #f0f0f0;border-radius:12px;padding:10px 12px;background:#fff}.fp-chip{display:inline-block;padding:6px 12px;border-radius:16px;background:#e6f4ff;border:1px solid #91caff;color:#0958d9;font-size:13px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \'Courier New\', monospace;cursor:pointer;user-select:none}.fp-chip.link{background:#f5f5f5;border-color:#d9d9d9;color:#666}.fp-meta{margin-top:6px;color:#6b7280;font-size:12px;font-family:system-ui, -apple-system, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial}', content: '{{executors[1].result.value.html}}' } }
+          ]
+        },
+        {
+          type: 'workflow',
           id: 'workflow_http_requester',
           name: 'HTTP Requester',
           mode: 'composed',

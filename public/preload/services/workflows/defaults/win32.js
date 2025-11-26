@@ -378,10 +378,10 @@ module.exports = [
                 }
               ]
             },
-            {
-              type: 'workflow',
-              id: 'demo-env-vars',
-              name: '显示环境变量',
+        {
+          type: 'workflow',
+          id: 'demo-env-vars',
+          name: '显示环境变量',
               mode: 'composed',
               iconType: 'builtin',
               iconKey: 'CodeOutlined',
@@ -608,6 +608,26 @@ module.exports = [
             }
           ],
           actions: []
+        },
+        {
+          type: 'workflow',
+          id: 'workflow_copy_local_ip_win',
+          name: '复制本机 IP',
+          mode: 'composed',
+          iconType: 'builtin',
+          iconKey: 'WifiOutlined',
+          iconColor: '#3f8cff',
+          feature: { enabled: true, code: 'wf-copy-ip-win', explain: '在 Windows 上获取并展示本机 IPv4（每行可独立复制，常规地址置顶）', cmds: ['复制IP','copy ip','ip'] },
+          executors: [
+            { id: 'exec_build_cmd', key: 'js-script', enabled: true, config: { code: `(context) => {\n  function toBase64Utf16Le(s) { var bin = ''; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); bin += String.fromCharCode(c & 0xFF) + String.fromCharCode((c >> 8) & 0xFF); } return btoa(bin); }\n  var ps = \"$ips = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' } | Select-Object -ExpandProperty IPAddress;\\nif(-not $ips -or $ips.Count -eq 0){ $ips = (ipconfig | Select-String -Pattern 'IPv4.*' | ForEach-Object { ($_ -split ':\\\\s*')[1].Trim() }) }\\nWrite-Output ($ips -join [Environment]::NewLine)\";\n  var encoded = toBase64Utf16Le(ps);\n  var cmd = \"powershell -NoProfile -EncodedCommand \" + encoded;\n  return { value: { cmd } };\n}` } },
+            { id: 'exec_run_cmd', key: 'command', enabled: true, config: { template: '{{executors[0].result.value.cmd}}', runInBackground: false, showWindow: false } },
+            { id: 'exec_build_detail_cmd', key: 'js-script', enabled: true, config: { code: `(context) => {\n  function toBase64Utf16Le(s) { var bin = ''; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); bin += String.fromCharCode(c & 0xFF) + String.fromCharCode((c >> 8) & 0xFF); } return btoa(bin); }\n  var ps2 = \"$items = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' } | Select-Object IPAddress, InterfaceAlias, PrefixLength, AddressState;\\n$json = $items | ConvertTo-Json -Compress;\\n$base64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($json));\\nWrite-Output $base64\";\n  var encoded2 = toBase64Utf16Le(ps2);\n  var cmd2 = \"powershell -NoProfile -EncodedCommand \" + encoded2;\n  return { value: { cmd2 } };\n}` } },
+            { id: 'exec_run_detail', key: 'command', enabled: true, config: { template: '{{executors[2].result.value.cmd2}}', runInBackground: false, showWindow: false } },
+            { id: 'exec_format_html', key: 'js-script', enabled: true, config: { code: `(context) => {\n  function decodeBase64Utf16Le(b64){var bin=atob(String(b64||''));var s='';for(var i=0;i<bin.length;i+=2){var lo=bin.charCodeAt(i);var hi=bin.charCodeAt(i+1)||0;s+=String.fromCharCode(lo|(hi<<8));}return s;}\n  var raw = String((context.executors && context.executors[1] && context.executors[1].result && context.executors[1].result.value && context.executors[1].result.value.execResult && context.executors[1].result.value.execResult.result) || '').trim();\n  var detailB64 = String((context.executors && context.executors[3] && context.executors[3].result && context.executors[3].result.value && context.executors[3].result.value.execResult && context.executors[3].result.value.execResult.result) || '').trim();\n  var jsonText=''; try{ jsonText = decodeBase64Utf16Le(detailB64); }catch(e){ jsonText='[]'; }\n  var details=[]; try{ details = JSON.parse(jsonText||'[]'); }catch(e){ details=[]; }\n  if(!Array.isArray(details)){ details = details ? [details] : []; }\n  var metaMap={}; details.forEach(function(d){ if(d && d.IPAddress){ metaMap[d.IPAddress]=d; } });\n  var lines = raw.split(/\\r?\\n/).map(function(s){return s.trim()}).filter(function(s){return s.length>0});\n  var seen=Object.create(null), uniq=[]; for(var i=0;i<lines.length;i++){ var ip=lines[i]; if(!seen[ip]){ seen[ip]=true; uniq.push(ip); } }\n  function isBlue(ip){ return !/^169\\.254\./.test(ip); }\n  var sorted = uniq.slice().sort(function(a,b){ var A=isBlue(a), B=isBlue(b); return (A===B)?0:(A?-1:1); });\n  var style = '<style>.fp-wrap{display:flex;flex-direction:column;gap:10px}.fp-tip{color:#595959;font-size:13px;margin-bottom:4px}.fp-list{max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.fp-card{border:1px solid #f0f0f0;border-radius:12px;padding:10px 12px;background:#fff}.fp-chip{display:inline-block;padding:6px 12px;border-radius:16px;background:#e6f4ff;border:1px solid #91caff;color:#0958d9;font-size:13px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\"Courier New\\", monospace;cursor:pointer;user-select:none}.fp-chip.link{background:#f5f5f5;border-color:#d9d9d9;color:#666}.fp-meta{margin-top:6px;color:#6b7280;font-size:12px;font-family:system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial}</style>';\n  var rows = sorted.map(function(ip){ var m=metaMap[ip]||{}; var alias=m.InterfaceAlias||'未知网卡'; var prefix=(m.PrefixLength!=null)?('/'+m.PrefixLength):''; var state=m.AddressState||''; var linklocal=/^169\\.254\./.test(ip); var chipCls='fp-chip'+(linklocal?' link':''); var meta=alias+(prefix?(' · '+prefix):'')+(state?(' · '+state):''); return '<div class=\\'fp-card\\'><span class=\\''+chipCls+'\\' data-fp-action=\\'copy\\' data-fp-arg=\\''+ip+'\\' title=\\''+meta.replace(/\"/g,'')+'\\'>'+ip+'</span><div class=\\'fp-meta\\'>'+meta+'</div></div>'; }).join('');\n  var html = style + '<div class=\\'fp-wrap\\'><div class=\\'fp-tip\\'>点击 IP 标签可复制 · 显示网卡/前缀/状态（常规地址优先）</div><div class=\\'fp-list\\'>'+rows+'</div></div>';\n  return { value: { html: html, ipList: sorted, details: details } };\n}` } }
+          ],
+          actions: [
+            { id: 'act_modal_ip_html', key: 'show-modal', enabled: true, config: { title: '本机 IPv4（Windows）', contentType: 'html', customStyles: '.fp-wrap{display:flex;flex-direction:column;gap:10px}.fp-tip{color:#595959;font-size:13px;margin-bottom:4px}.fp-list{max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.fp-card{border:1px solid #f0f0f0;border-radius:12px;padding:10px 12px;background:#fff}.fp-chip{display:inline-block;padding:6px 12px;border-radius:16px;background:#e6f4ff;border:1px solid #91caff;color:#0958d9;font-size:13px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \'Courier New\', monospace;cursor:pointer;user-select:none}.fp-chip.link{background:#f5f5f5;border-color:#d9d9d9;color:#666}.fp-meta{margin-top:6px;color:#6b7280;font-size:12px;font-family:system-ui, -apple-system, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial}', content: '{{executors[4].result.value.html}}' } }
+          ]
         },
         {
           type: 'workflow',
