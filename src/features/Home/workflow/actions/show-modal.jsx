@@ -137,24 +137,152 @@ export const ShowModalAction = {
       maskClosable: true
     })
 
-    // 为链接添加点击事件（使用事件委托）
     setTimeout(() => {
       const modalBody = document.querySelector('.ant-modal-body')
-      if (modalBody) {
-        // 使用事件委托，只绑定一次
-        modalBody.addEventListener('click', (e) => {
-          // 向上查找最近的 a 标签
-          const link = e.target.closest('a[href]')
-          if (link) {
+      if (!modalBody) return
+      modalBody.addEventListener('click', async (e) => {
+        const target = e.target
+        const actEl = target.closest('[data-fp-action]')
+        if (actEl) {
+          e.preventDefault()
+          e.stopPropagation()
+          const action = String(actEl.getAttribute('data-fp-action') || '').trim()
+          const arg = actEl.getAttribute('data-fp-arg')
+          const args = actEl.getAttribute('data-fp-args')
+          try {
+            await executeAbility(action, arg ?? args)
+          } catch (err) {
+            systemService.showNotification(String(err?.message || err || '执行失败'))
+          }
+          return
+        }
+
+        const link = target.closest('a[href]')
+        if (link) {
+          const href = link.getAttribute('href') || ''
+          if (href.startsWith('fp:') || href.startsWith('fp://')) {
             e.preventDefault()
             e.stopPropagation()
-            const href = link.getAttribute('href')
-            if (href && href !== '#') {
-              systemService.openExternal(href)
+            try {
+              const { name, payload } = parseFpHref(href)
+              await executeAbility(name, payload)
+            } catch (err) {
+              systemService.showNotification(String(err?.message || err || '执行失败'))
             }
+            return
           }
-        })
-      }
-    }, 100)
+          if (href && href !== '#') {
+            e.preventDefault()
+            e.stopPropagation()
+            systemService.openExternal(href)
+            return
+          }
+        }
+
+        const callText = target.getAttribute?.('data-fp-call') || target.textContent || ''
+        if (/^\s*@\w+\s*\(.*\)\s*$/.test(callText)) {
+          e.preventDefault()
+          e.stopPropagation()
+          try {
+            const { name, payload } = parseAtCall(callText)
+            await executeAbility(name, payload)
+          } catch (err) {
+            systemService.showNotification(String(err?.message || err || '执行失败'))
+          }
+        }
+      })
+    }, 50)
   }
+}
+
+async function executeAbility(name, payload) {
+  const n = String(name || '').toLowerCase()
+  switch (n) {
+    case 'copy': {
+      const text = String(payload || '')
+      if (!text.trim()) throw new Error('复制内容为空')
+      const ok = await systemService.writeClipboard(text)
+      if (!ok) throw new Error('写入剪贴板失败')
+      systemService.showNotification('已复制到剪贴板')
+      return
+    }
+    case 'open': {
+      const url = String(payload || '')
+      if (!url.trim()) throw new Error('URL 为空')
+      systemService.openExternal(url)
+      return
+    }
+    case 'notify': {
+      const msg = String(payload || '')
+      if (!msg.trim()) throw new Error('通知内容为空')
+      systemService.showNotification(msg)
+      return
+    }
+    case 'download': {
+      const text = String(payload || '')
+      if (!text.trim()) throw new Error('下载内容为空')
+      const path = systemService.writeTextFile(text)
+      if (!path) throw new Error('下载失败')
+      systemService.showNotification(`已保存到: ${path}`)
+      return
+    }
+    case 'openpath': {
+      const p = String(payload || '')
+      if (!p.trim()) throw new Error('路径为空')
+      await systemService.openPath(p)
+      return
+    }
+    case 'writefile': {
+      const json = String(payload || '')
+      if (!json.trim()) throw new Error('写文件参数为空')
+      let args
+      try { args = JSON.parse(json) } catch { throw new Error('写文件参数需为JSON') }
+      const filePath = String(args.path || '')
+      const content = String(args.content || '')
+      if (!filePath.trim()) throw new Error('写文件路径为空')
+      const out = window.services?.writeTextFileAt ? window.services.writeTextFileAt(filePath, content) : null
+      if (!out) throw new Error('写文件失败')
+      systemService.showNotification(`已写入: ${out}`)
+      return
+    }
+    case 'run': {
+      const json = String(payload || '')
+      if (!json.trim()) throw new Error('命令参数为空')
+      let req
+      try { req = JSON.parse(json) } catch { throw new Error('命令参数需为JSON') }
+      const { command, runInBackground, timeout, env, showWindow } = req || {}
+      if (!String(command || '').trim()) throw new Error('command 为空')
+      const res = await systemService.executeCommand({ command, runInBackground, timeout, env, showWindow })
+      if (!res?.success) throw new Error('命令执行失败')
+      systemService.showNotification('命令已执行')
+      return
+    }
+    default:
+      throw new Error(`未知能力: ${name}`)
+  }
+}
+
+function parseFpHref(href) {
+  if (href.startsWith('fp://')) {
+    try {
+      const u = new URL(href)
+      const name = u.hostname
+      const payload = u.searchParams.get('text') || u.searchParams.get('url') || ''
+      return { name, payload }
+    } catch {
+      throw new Error('fp:// 链接解析失败')
+    }
+  }
+  const m = href.match(/^fp:(\w+):(.*)$/)
+  if (m) {
+    const [, name, payload] = m
+    return { name, payload }
+  }
+  throw new Error('不支持的 fp 链接格式')
+}
+
+function parseAtCall(text) {
+  const m = String(text || '').trim().match(/^@(?<name>\w+)\((?<payload>.*)\)$/)
+  if (!m || !m.groups) throw new Error('文本指令格式错误')
+  return { name: m.groups.name, payload: m.groups.payload }
 }
