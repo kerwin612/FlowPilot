@@ -203,6 +203,32 @@ class SystemService {
     console.warn('window.services.browser 不可用')
   }
 
+  async allAiModels() {
+    if (typeof window !== 'undefined' && window.services?.allAiModels) {
+      try {
+        return await window.services.allAiModels()
+      } catch (e) {
+        console.error('services.allAiModels 调用失败:', e)
+        return []
+      }
+    }
+    console.warn('window.services.allAiModels 不可用')
+    return []
+  }
+
+  ai(options, onDelta) {
+    if (typeof window !== 'undefined' && window.services?.ai) {
+      try {
+        return window.services.ai(options, onDelta)
+      } catch (e) {
+        console.error('services.ai 调用失败:', e)
+        return null
+      }
+    }
+    console.warn('window.services.ai 不可用')
+    return null
+  }
+
   // ==================== 插件跳转 ====================
 
   /**

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer } from 'antd'
-import { SettingOutlined, GithubOutlined, ShareAltOutlined } from '@ant-design/icons'
+import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
@@ -8,6 +8,7 @@ import { systemService } from '../../services'
 import WorkflowCard from './components/WorkflowCard'
 import FolderCard from './components/FolderCard'
 import ConfigManager from './components/ConfigManager'
+import AiChatbot from './components/AiChatbot'
 
 export default function Home({ enterAction: _enterAction }) {
   const { config, tabs, envVars, globalVars, reload } = useConfig()
@@ -18,6 +19,7 @@ export default function Home({ enterAction: _enterAction }) {
   const [showConfigManager, setShowConfigManager] = useState(false)
   const [openFolder, setOpenFolder] = useState(null)
   const [activeTabKey, setActiveTabKey] = useState(String(currentTabIndex))
+  const [showChatbot, setShowChatbot] = useState(false)
 
   // no-op
 
@@ -212,6 +214,21 @@ export default function Home({ enterAction: _enterAction }) {
             <Empty description="该文件夹暂无内容" />
           )}
         </Drawer>
+      )}
+
+      <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1000 }}>
+        <Button
+          type="primary"
+          shape="circle"
+          size="large"
+          icon={<RobotOutlined />}
+          title="AI 生成工作流"
+          onClick={() => setShowChatbot(true)}
+        />
+      </div>
+
+      {showChatbot && (
+        <AiChatbot open={showChatbot} onClose={() => setShowChatbot(false)} />
       )}
     </Layout>
   )

@@ -29,6 +29,28 @@ module.exports = {
       return null
     }
   },
+  async allAiModels() {
+    try {
+      if (window.utools && typeof window.utools.allAiModels === 'function') {
+        return await window.utools.allAiModels()
+      }
+      return []
+    } catch (err) {
+      console.error('allAiModels 错误:', err)
+      return []
+    }
+  },
+  ai(options, onDelta) {
+    try {
+      if (window.utools && typeof window.utools.ai === 'function') {
+        return window.utools.ai(options, onDelta)
+      }
+      return null
+    } catch (err) {
+      console.error('ai 调用失败:', err)
+      return null
+    }
+  },
   /**
    * 跳转到其他插件
    * @param {string|[string, string]} label - 指令名称或 [插件名称, 指令名称]
