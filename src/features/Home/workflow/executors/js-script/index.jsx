@@ -27,7 +27,7 @@ const ScriptConfig = ({ value = {}, onChange }) => {
   return (
     <TextArea
       rows={8}
-      placeholder={`示例:\n(context) => {\n  const prev = context.executors[0]?.result?.value;\n  return { time: Date.now(), prev }\n}`}
+      placeholder={`示例:\n(context) => {\n  const text = String(context.executors[0]?.result?.value?.execResult?.result || '');\n  const list = text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);\n  return { value: { list } }\n}`}
       value={code}
       onChange={(e) => setCode(e.target.value)}
       onBlur={() => onChange({ ...(value || {}), code })}

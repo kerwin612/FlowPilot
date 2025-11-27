@@ -66,7 +66,7 @@ const CommandConfig = ({ value = {}, onChange }) => {
       )}
       <Input.TextArea
         rows={4}
-        placeholder={'示例: notepad {{executors[0].result.value.file}} 或 echo {{envs.PATH}}'}
+        placeholder={'示例: notepad {{executors[0].result.value.file}} · 解析上一命令输出请在脚本中读取 executors[IDX].result.value.execResult.result'}
         value={template}
         onChange={(e) => setTemplate(e.target.value)}
         onBlur={() => onChange({ ...(value || {}), template })}
