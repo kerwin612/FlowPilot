@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Input, Switch, Space, Alert } from 'antd'
+import AiButton from '../../../../../shared/ui/AiButton'
 import { resolveTemplate } from '../../engine/compile'
 import { systemService } from '../../../../../services'
 
@@ -38,6 +39,7 @@ const CommandConfig = ({ value = {}, onChange }) => {
     setShowWindow(value.showWindow !== false)
   }, [value.showWindow])
   const risky = detectRisks(template)
+  const placeholder = '示例: notepad {{executors[0].result.value.file}} · 解析上一命令输出请在脚本中读取 executors[IDX].result.value.execResult.result'
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       {risky.length > 0 && (
@@ -64,13 +66,29 @@ const CommandConfig = ({ value = {}, onChange }) => {
           }
         />
       )}
-      <Input.TextArea
-        rows={4}
-        placeholder={'示例: notepad {{executors[0].result.value.file}} · 解析上一命令输出请在脚本中读取 executors[IDX].result.value.execResult.result'}
-        value={template}
-        onChange={(e) => setTemplate(e.target.value)}
-        onBlur={() => onChange({ ...(value || {}), template })}
-      />
+      <div style={{ position: 'relative' }}>
+        <Input.TextArea
+          rows={4}
+          placeholder={placeholder}
+          value={template}
+          onChange={(e) => setTemplate(e.target.value)}
+          onBlur={() => onChange({ ...(value || {}), template })}
+        />
+        <div style={{ position: 'absolute', right: 8, bottom: 8 }}>
+          <AiButton
+            placeholder={'请输入所需要的命令功能描述，如果依赖其他参数（比如其他执行器结果）请告知如何取值，提供取值模板'}
+            systemPrompt={'你是 FlowPilot 的命令生成助手，仅输出一行命令文本，不做解释，平台为 {{platform}}。'}
+            assistantPrompts={[
+              '使用模板读取变量时请注意模板仅做变量注入，不做复杂逻辑；跨执行器读取使用 context.executors[IDX]?.result?.value',
+              'Windows 平台优先给出 powershell 兼容写法；',
+              placeholder
+            ]}
+            onApply={(txt) => { setTemplate(txt); onChange({ ...(value || {}), template: txt }) }}
+            shape={'circle'}
+            size={'small'}
+          />
+        </div>
+      </div>
       <Space>
         <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>后台运行:</span>
         <Switch

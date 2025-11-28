@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Input } from 'antd'
+import { Input, Space } from 'antd'
+import AiButton from '../../../../../shared/ui/AiButton'
 import { resolveTemplate } from '../../engine/compile'
 import { systemService } from '../../../../../services'
 
@@ -24,15 +25,35 @@ const ScriptConfig = ({ value = {}, onChange }) => {
   useEffect(() => {
     setCode(value.code || '')
   }, [value.code])
+  const placeholder = `示例:\n(context) => {\n  const text = String(context.executors[0]?.result?.value?.execResult?.result || '');\n  const list = text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);\n  return { value: { list } }\n}`
   return (
-    <TextArea
-      rows={8}
-      placeholder={`示例:\n(context) => {\n  const text = String(context.executors[0]?.result?.value?.execResult?.result || '');\n  const list = text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);\n  return { value: { list } }\n}`}
-      value={code}
-      onChange={(e) => setCode(e.target.value)}
-      onBlur={() => onChange({ ...(value || {}), code })}
-      style={{ fontFamily: 'monospace' }}
-    />
+    <div style={{ position: 'relative' }}>
+      <TextArea
+        rows={8}
+        placeholder={placeholder}
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        onBlur={() => onChange({ ...(value || {}), code })}
+        style={{ fontFamily: 'monospace' }}
+      />
+      <div style={{ position: 'absolute', right: 8, bottom: 8 }}>
+        <AiButton
+          placeholder={'请输入所需要的脚本功能描述，如果依赖其他参数（比如其他执行器结果）请告知如何取值，提供取值模板'}
+          systemPrompt={'你是 FlowPilot 的配置助手，仅输出纯 JS 函数文本，不做解释。输出内容为纯JS函数文本，不用包含其他多余的包裹。禁止使用 require/import。若读取前置命令执行器输出，请统一使用 context.executors[IDX].result.value.execResult.result 并做 String(...||\'\') 与 split(/\\r?\\n/)。'}
+          assistantPrompts={[
+            '脚本必须为 (context)=>{} 或 async (context)=>{} 形式，返回格式为 { value: { scriptResult } }',
+            '使用模板读取变量时请注意模板仅做变量注入，不做复杂逻辑；跨执行器读取使用 context.executors[IDX]?.result?.value',
+            placeholder
+          ]}
+          onApply={(txt) => {
+            setCode(txt)
+            onChange({ ...(value || {}), code: txt })
+          }}
+          shape={'circle'}
+          size={'small'}
+        />
+      </div>
+    </div>
   )
 }
 
