@@ -1,12 +1,20 @@
 const fsService = require('./services/fs.js')
 const systemService = require('./services/system.js')
+const platformService = require('./services/platform.js')
 const workflowsService = require('./services/workflows/index.js')
 
-window.services = {
+  window.services = {
+  getPlatform: platformService.getPlatform,
   readFile: fsService.readFile,
+  readBinaryFile: fsService.readBinaryFile,
+  readBinaryFileRaw: fsService.readBinaryFileRaw,
+  pathExists: fsService.pathExists,
   writeTextFile: fsService.writeTextFile,
   writeTextFileAt: fsService.writeTextFileAt,
+  writeBinaryFileAt: fsService.writeBinaryFileAt,
+  writeBinaryFileRaw: fsService.writeBinaryFileRaw,
   writeImageFile: fsService.writeImageFile,
+  getAbsolutePath: (p, context) => fsService.getAbsolutePath(p, context),
 
   browser: systemService.browser,
   openExternal: systemService.openExternal,
@@ -76,10 +84,9 @@ window.services = {
 }
 
 const defaults = require('./services/workflows/defaults.js')
-const platformService = require('./services/platform.js')
 
 window.fpGetPlatformType = () => {
-  return platformService()
+  return platformService.getPlatform()
 }
 
 window.fpGetDefaultWorkflowExamples = (opts = {}) => {

@@ -18,7 +18,8 @@
  */
 
 const command = require('../../core/command.js')
-const getPlatform = require('../platform.js')
+const { expandEnvVars } = require('../../core/env.js')
+const platformService = require('../platform.js')
 const defaults = require('./defaults.js')
 const { getDAO } = require('../../dao')
 const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar, Profile } = require('../../dao/model/models')
@@ -34,7 +35,7 @@ const { Config, Tab, Workflow, Folder, EnvVar, GlobalVar, Profile } = require('.
  */
 function initDefault() {
   const dao = getDAO()
-  const platform = getPlatform()
+  const platform = platformService.getPlatform()
   const defaultTabs = defaults[platform] || defaults.linux
 
   console.log('[Workflow Service] 初始化默认配置', { platform, tabsCount: defaultTabs.length })
@@ -509,95 +510,6 @@ function buildCommand(workflow, params = {}) {
   return cmd
 }
 
-/**
- * 展开环境变量中的引用
- * 
- * 支持两种格式：
- * - Windows 风格: %VAR%
- * - Unix 风格: $VAR 或 ${VAR}
- * 
- * 特性：
- * - 支持变量间的相互引用
- * - 防止循环引用
- * - 优先使用自定义变量，找不到时回退到系统环境变量
- * 
- * @param {Object} customEnv - 用户自定义环境变量
- * @param {Object} baseEnv - 基础环境变量（通常是 process.env）
- * @returns {Object} 展开后的环境变量
- */
-function expandEnvVars(customEnv, baseEnv, globals = {}) {
-  if (!customEnv || typeof customEnv !== 'object') {
-    return {}
-  }
-
-  const expanded = {}
-  const resolving = new Set()
-
-  Object.keys(customEnv).forEach(key => {
-    expanded[key] = resolveVar(key, customEnv, baseEnv, expanded, resolving, globals)
-  })
-
-  return expanded
-}
-
-/**
- * 递归解析单个环境变量
- * 
- * @param {string} key - 变量名
- * @param {Object} customEnv - 自定义环境变量
- * @param {Object} baseEnv - 基础环境变量
- * @param {Object} expanded - 已展开的变量（缓存）
- * @param {Set} resolving - 正在解析的变量（防止循环引用）
- * @returns {string} 解析后的变量值
- */
-function resolveVar(key, customEnv, baseEnv, expanded, resolving, globals = {}) {
-  // 防止循环引用
-  if (resolving.has(key)) {
-    return customEnv[key]
-  }
-
-  let value = customEnv[key]
-  if (typeof value !== 'string') {
-    return value
-  }
-
-  resolving.add(key)
-
-  // 展开 Windows 风格的 %VAR%
-  value = value.replace(/%([^%]+)%/g, (match, varName) => {
-    if (varName === key) {
-      // 引用自己，使用 baseEnv 中的值
-      return baseEnv[varName] || ''
-    }
-    if (customEnv.hasOwnProperty(varName)) {
-      // 引用其他自定义变量，递归展开
-      if (!expanded.hasOwnProperty(varName)) {
-        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving, globals)
-      }
-      return expanded[varName]
-    }
-    // 从 baseEnv 中查找
-    return baseEnv[varName] || match
-  })
-
-  // 展开 Unix 风格的 $VAR 和 ${VAR}
-  value = value.replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, braced, simple) => {
-    const varName = braced || simple
-    if (varName === key) {
-      return baseEnv[varName] || ''
-    }
-    if (customEnv.hasOwnProperty(varName)) {
-      if (!expanded.hasOwnProperty(varName)) {
-        expanded[varName] = resolveVar(varName, customEnv, baseEnv, expanded, resolving, globals)
-      }
-      return expanded[varName]
-    }
-    return baseEnv[varName] || match
-  })
-
-  resolving.delete(key)
-  return value
-}
 
 /**
  * 执行命令
@@ -618,22 +530,25 @@ function resolveVar(key, customEnv, baseEnv, expanded, resolving, globals = {}) 
  * @param {Object} params - 参数对象
  * @returns {Promise<Object>} 执行结果 { success, result?, error?, code?, details? }
  */
-async function executeCommand(workflow, params = {}) {
+async function executeCommand(workflow, params = {}, context = null) {
   const cmd = buildCommand(workflow, params)
   
   try {
-    // 构建全局变量映射用于 {{vars.KEY}} 引用
-    const globalsArray = getGlobalVars()
-    const globalsMap = {}
-    for (const v of globalsArray) {
-      const k = (v && v.key && typeof v.key === 'string') ? v.key.trim() : ''
-      if (k && !(k in globalsMap)) {
-        globalsMap[k] = v.value || ''
+    let globalsArray = []
+    let globalsMap = (context && context.vars) ? context.vars : {}
+    if (!globalsMap || Object.keys(globalsMap).length === 0) {
+      globalsArray = getGlobalVars()
+      globalsMap = {}
+      for (const v of globalsArray) {
+        const k = (v && v.key && typeof v.key === 'string') ? v.key.trim() : ''
+        if (k && !(k in globalsMap)) {
+          globalsMap[k] = v.value || ''
+        }
       }
     }
-    // 展开用户环境变量中的引用（如 %PATH%、$HOME、以及 {{vars.KEY}} 等）
-    const expandedEnv = expandEnvVars(workflow.env || {}, process.env, { map: globalsMap, raw: globalsArray })
-    const finalEnv = { ...process.env, ...expandedEnv }
+    const ctxEnv = (context && (context.env || context.envs)) || {}
+    const expandedEnv = expandEnvVars(workflow.env || {}, { map: globalsMap, raw: globalsArray })
+    const finalEnv = { ...(typeof process !== 'undefined' ? process.env : {}), ...ctxEnv, ...expandedEnv }
 
     const result = await command(cmd, {
       detached: workflow.runInBackground || false,

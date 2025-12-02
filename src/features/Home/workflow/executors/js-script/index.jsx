@@ -25,7 +25,7 @@ const ScriptConfig = ({ value = {}, onChange }) => {
   useEffect(() => {
     setCode(value.code || '')
   }, [value.code])
-  const placeholder = `示例:\n(context) => {\n  const text = String(context.executors[0]?.result?.value?.execResult?.result || '');\n  const list = text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);\n  return { value: { list } }\n}`
+  const placeholder = `示例:\n(context) => {\n  const text = String(context.executors[0]?.result?.value?.execResult?.result || '');\n  const list = text.split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);\n  // 读取/写入文件能力\n  const readme = context.fs.readText('/path/to/README.md')\n  const imgB64 = context.fs.readBase64('/path/to/image.png')\n  context.fs.writeTextAt('/tmp/out.txt', 'hello')\n  context.fs.writeBase64At('/tmp/out.bin', imgB64)\n  return { value: { list, readmeLen: (readme||'').length } }\n}`
   return (
     <div style={{ position: 'relative' }}>
       <TextArea

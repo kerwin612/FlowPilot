@@ -1,11 +1,19 @@
+import { getApis, attachWindowApis } from './apis'
+
 export function createExecutionContext(workflow, trigger = {}, envs = {}, vars = {}) {
-  return {
+  const context = {
     workflow,
     trigger,
     envs,
     vars,
     timestamp: new Date(),
-    executors: []
+    executors: [],
+    apis: null
+  }
+  attachWindowApis(context)
+  return {
+    ...context,
+    apis: getApis(context)
   }
 }
 

@@ -102,6 +102,45 @@ class SystemService {
   }
 
   /**
+   * 读取二进制文件为 base64
+   * @param {string} filePath
+   * @returns {string|null}
+   */
+  readBinaryFile(filePath) {
+    if (typeof window !== 'undefined' && window.services?.readBinaryFile) {
+      return window.services.readBinaryFile(filePath)
+    }
+    console.warn('window.services.readBinaryFile 不可用')
+    return null
+  }
+
+  /**
+   * 读取二进制文件为原始字节（Uint8Array）
+   * @param {string} filePath
+   * @returns {Uint8Array|null}
+   */
+  readBinaryFileRaw(filePath) {
+    if (typeof window !== 'undefined' && window.services?.readBinaryFileRaw) {
+      return window.services.readBinaryFileRaw(filePath)
+    }
+    console.warn('window.services.readBinaryFileRaw 不可用')
+    return null
+  }
+
+  /**
+   * 路径是否存在
+   * @param {string} filePath
+   * @returns {boolean}
+   */
+  pathExists(filePath) {
+    if (typeof window !== 'undefined' && window.services?.pathExists) {
+      return window.services.pathExists(filePath)
+    }
+    console.warn('window.services.pathExists 不可用')
+    return false
+  }
+
+  /**
    * 写入文本文件（用于 Write 功能）
    * @param {string} content - 文本内容
    * @returns {string|null} 输出路径
@@ -124,6 +163,34 @@ class SystemService {
       return window.services.writeImageFile(dataUrl)
     }
     console.warn('window.services.writeImageFile 不可用')
+    return null
+  }
+
+  /**
+   * 写入二进制文件（base64 输入）到指定路径
+   * @param {string} filePath
+   * @param {string} base64
+   * @returns {string|null}
+   */
+  writeBinaryFileAt(filePath, base64) {
+    if (typeof window !== 'undefined' && window.services?.writeBinaryFileAt) {
+      return window.services.writeBinaryFileAt(filePath, base64)
+    }
+    console.warn('window.services.writeBinaryFileAt 不可用')
+    return null
+  }
+
+  /**
+   * 写入原始二进制（Uint8Array/ArrayBuffer/Buffer）到指定路径
+   * @param {string} filePath
+   * @param {Uint8Array|ArrayBuffer|Buffer|string} data
+   * @returns {string|null}
+   */
+  writeBinaryFileRaw(filePath, data) {
+    if (typeof window !== 'undefined' && window.services?.writeBinaryFileRaw) {
+      return window.services.writeBinaryFileRaw(filePath, data)
+    }
+    console.warn('window.services.writeBinaryFileRaw 不可用')
     return null
   }
 
@@ -291,13 +358,13 @@ class SystemService {
    * @param {Object} extra - 预留扩展
    * @returns {Promise<{success: boolean, result: any}>}
    */
-  async executeCommand(request, extra = {}) {
+  async executeCommand(request, context = null) {
     const api = typeof window !== 'undefined' && window.services?.workflow?.executeCommand
     if (!api) {
       console.warn('window.services.workflow.executeCommand 不可用')
       return { success: false, result: null }
     }
-    return await api(request, extra)
+    return await api(request, undefined, context)
   }
 }
 

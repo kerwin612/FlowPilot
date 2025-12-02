@@ -3,6 +3,7 @@ import { Input, Checkbox } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 import { ensureModal } from '../../../../shared/ui/modalHost'
 import { systemService } from '../../../../services'
+import { callApi } from '../engine/apis'
 
 const PageAppConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '页面应用')
@@ -45,8 +46,8 @@ function buildSrcdoc({ html, css, js, payloadJSON }) {
 ${html || ''}
 <script>
   window.__PAYLOAD__ = ${payloadJSON};
-  window.fp = {
-    invoke: (name, payload) => new Promise((resolve) => {
+  function fpInvoke(name, payload){
+    return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2)
       function onMessage(e){
         const d = e.data || {}
@@ -54,18 +55,21 @@ ${html || ''}
       }
       window.addEventListener('message', onMessage)
       parent.postMessage({ type:'fp:invoke', id, name, payload }, '*')
-    }),
-    copy: (t) => window.fp.invoke('copy', t),
-    open: (u) => window.fp.invoke('open', u),
-    notify: (m) => window.fp.invoke('notify', m),
-    download: (txt) => window.fp.invoke('download', txt),
-    openPath: (p) => window.fp.invoke('openpath', p),
-    writeFile: (x) => window.fp.invoke('writefile', x),
-    run: (x) => window.fp.invoke('run', x)
-  };
-  try { ${js || ''} } catch (e) {
-    parent.postMessage({ type:'fp:invoke', id:'__err__', name:'notify', payload: '页面脚本错误: ' + e.message })
+    })
   }
+  window.fp = { invoke: fpInvoke };
+  function createApiProxy(p){
+    p = Array.isArray(p) ? p : []
+    const fn = (...args) => fpInvoke(p.join('.'), args.length > 1 ? args : args[0])
+    return new Proxy(fn, {
+      get: (target, prop) => {
+        if (prop === 'toString') return () => '[apis:' + p.join('.') + ']'
+        return createApiProxy(p.concat(String(prop)))
+      }
+    })
+  }
+  window.apis = createApiProxy([])
+  try { ${js || ''} } catch (e) { window.apis.notify('页面脚本错误: ' + e.message) }
 </script>
 </body>
 </html>`
@@ -167,50 +171,21 @@ async function executePageApp(trigger, context, config) {
     }, 0)
   }
 
+  const processedIds = new Set()
   async function onMessage(e) {
     const d = e.data || {}
     if (d.type !== 'fp:invoke') return
+    if (!frame || e.source !== frame.contentWindow) return
     const { id, name, payload } = d
+    if (processedIds.has(id)) return
+    processedIds.add(id)
     const resp = (result) => {
       try { frame.contentWindow.postMessage({ type:'fp:resp', id, result }, '*') } catch {}
     }
     const done = (v) => resp(v ?? true)
     try {
-      switch (name) {
-        case 'copy':
-          systemService.writeClipboard(String(payload || ''))
-          systemService.showNotification('已复制到剪贴板')
-          return done(true)
-        case 'open':
-          systemService.openExternal(String(payload || ''))
-          return done(true)
-        case 'notify':
-          systemService.showNotification(String(payload || ''))
-          return done(true)
-        case 'download': {
-          const p = systemService.writeTextFile(String(payload || ''))
-          systemService.showNotification('已保存到: ' + p)
-          return done(p)
-        }
-        case 'openpath':
-          systemService.openPath(String(payload || ''))
-          return done(true)
-        case 'writefile': {
-          const { path, content } = payload || {}
-          if (!path) throw new Error('缺少 path')
-          await window.services.writeTextFileAt(String(path), String(content ?? ''))
-          systemService.showNotification('已写入: ' + path)
-          return done(true)
-        }
-        case 'run': {
-          const req = payload || {}
-          const res = await systemService.executeCommand(req)
-          return done(res)
-        }
-        default:
-          systemService.showNotification('未知能力: ' + name)
-          return done(false)
-      }
+      const result = await callApi(name, payload)
+      return done(result)
     } catch (err) {
       systemService.showNotification('能力调用失败: ' + (err?.message || err))
       resp({ error: String(err?.message || err) })

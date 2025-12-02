@@ -3,6 +3,7 @@ import { Input, Select, Space } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 import { ensureModal } from '../../../../shared/ui/modalHost'
 import { systemService } from '../../../../services'
+import { callApi, attachWindowApis } from '../engine/apis'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -90,6 +91,7 @@ export const ShowModalAction = {
   },
   ConfigComponent: ShowModalConfig,
   async execute(trigger, context, config, options = {}) {
+    attachWindowApis()
     const title = resolveTemplate(config.title || '提示', context)
     const content = resolveTemplate(config.content || '', context)
     const contentType = config.contentType || 'text'
@@ -150,7 +152,7 @@ export const ShowModalAction = {
           const arg = actEl.getAttribute('data-fp-arg')
           const args = actEl.getAttribute('data-fp-args')
           try {
-            await executeAbility(action, arg ?? args)
+            await callApi(action, arg ?? args)
           } catch (err) {
             systemService.showNotification(String(err?.message || err || '执行失败'))
           }
@@ -165,7 +167,7 @@ export const ShowModalAction = {
             e.stopPropagation()
             try {
               const { name, payload } = parseFpHref(href)
-              await executeAbility(name, payload)
+              await callApi(name, payload)
             } catch (err) {
               systemService.showNotification(String(err?.message || err || '执行失败'))
             }
@@ -185,7 +187,7 @@ export const ShowModalAction = {
           e.stopPropagation()
           try {
             const { name, payload } = parseAtCall(callText)
-            await executeAbility(name, payload)
+            await callApi(name, payload)
           } catch (err) {
             systemService.showNotification(String(err?.message || err || '执行失败'))
           }
@@ -195,72 +197,7 @@ export const ShowModalAction = {
   }
 }
 
-async function executeAbility(name, payload) {
-  const n = String(name || '').toLowerCase()
-  switch (n) {
-    case 'copy': {
-      const text = String(payload || '')
-      if (!text.trim()) throw new Error('复制内容为空')
-      const ok = await systemService.writeClipboard(text)
-      if (!ok) throw new Error('写入剪贴板失败')
-      systemService.showNotification('已复制到剪贴板')
-      return
-    }
-    case 'open': {
-      const url = String(payload || '')
-      if (!url.trim()) throw new Error('URL 为空')
-      systemService.openExternal(url)
-      return
-    }
-    case 'notify': {
-      const msg = String(payload || '')
-      if (!msg.trim()) throw new Error('通知内容为空')
-      systemService.showNotification(msg)
-      return
-    }
-    case 'download': {
-      const text = String(payload || '')
-      if (!text.trim()) throw new Error('下载内容为空')
-      const path = systemService.writeTextFile(text)
-      if (!path) throw new Error('下载失败')
-      systemService.showNotification(`已保存到: ${path}`)
-      return
-    }
-    case 'openpath': {
-      const p = String(payload || '')
-      if (!p.trim()) throw new Error('路径为空')
-      await systemService.openPath(p)
-      return
-    }
-    case 'writefile': {
-      const json = String(payload || '')
-      if (!json.trim()) throw new Error('写文件参数为空')
-      let args
-      try { args = JSON.parse(json) } catch { throw new Error('写文件参数需为JSON') }
-      const filePath = String(args.path || '')
-      const content = String(args.content || '')
-      if (!filePath.trim()) throw new Error('写文件路径为空')
-      const out = window.services?.writeTextFileAt ? window.services.writeTextFileAt(filePath, content) : null
-      if (!out) throw new Error('写文件失败')
-      systemService.showNotification(`已写入: ${out}`)
-      return
-    }
-    case 'run': {
-      const json = String(payload || '')
-      if (!json.trim()) throw new Error('命令参数为空')
-      let req
-      try { req = JSON.parse(json) } catch { throw new Error('命令参数需为JSON') }
-      const { command, runInBackground, timeout, env, showWindow } = req || {}
-      if (!String(command || '').trim()) throw new Error('command 为空')
-      const res = await systemService.executeCommand({ command, runInBackground, timeout, env, showWindow })
-      if (!res?.success) throw new Error('命令执行失败')
-      systemService.showNotification('命令已执行')
-      return
-    }
-    default:
-      throw new Error(`未知能力: ${name}`)
-  }
-}
+// 统一能力入口通过 callApi 提供
 
 function parseFpHref(href) {
   if (href.startsWith('fp://')) {
