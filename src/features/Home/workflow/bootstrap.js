@@ -18,6 +18,7 @@ import { EnvPatchExecutor } from './executors/env-patch/index.jsx'
 import { OpenLinkAction } from './actions/open-link.jsx'
 import { OpenPathAction } from './actions/open-path.jsx'
 import { ShowModalAction } from './actions/show-modal.jsx'
+import { PageAppAction } from './actions/page-app.jsx'
 import { WriteClipboardAction } from './actions/write-clipboard.jsx'
 import { BrowserAction } from './actions/browser.jsx'
 import { RedirectPluginAction } from './actions/redirect-plugin.jsx'
@@ -54,6 +55,7 @@ export function initializeRegistries() {
     OpenLinkAction,
     OpenPathAction,
     ShowModalAction,
+    PageAppAction,
     WriteClipboardAction,
     BrowserAction,
     RedirectPluginAction
