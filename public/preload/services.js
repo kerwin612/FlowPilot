@@ -90,7 +90,7 @@ window.fpGetPlatformType = () => {
 }
 
 window.fpGetDefaultWorkflowExamples = (opts = {}) => {
-  const platform = platformService()
+  const platform = platformService.getPlatform()
   const tabs = defaults[platform] || []
   const examples = []
   const deepClone = (node) => {
@@ -140,7 +140,7 @@ window.fpGetDefaultWorkflowExamples = (opts = {}) => {
 }
 
 window.fpGetCurrentConfigExports = (opts = {}) => {
-  const platform = platformService()
+  const platform = platformService.getPlatform()
   const tabs = workflowsService.getTabs()
   const examples = []
   const deepClone = (node) => {
