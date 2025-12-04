@@ -1,32 +1,41 @@
 import React, { useEffect, useState } from 'react'
 import { Input, Checkbox } from 'antd'
 import { resolveTemplate } from '../engine/compile'
-import { ensureModal } from '../../../../shared/ui/modalHost'
-import { systemService } from '../../../../services'
-import { callApi } from '../engine/apis'
 
 const PageAppConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '页面应用')
-  const [allowScripts, setAllowScripts] = useState(value.allowScripts ?? true)
   const [allowPopups, setAllowPopups] = useState(value.allowPopups ?? true)
-  const [allowSameOrigin, setAllowSameOrigin] = useState(value.allowSameOrigin ?? false)
   const [html, setHtml] = useState(value.html || '<div id="app"></div>')
   const [css, setCss] = useState(value.css || '')
   const [js, setJs] = useState(value.js || '(() => { document.getElementById("app").innerHTML = "Hello Page"; })()')
   const [fullscreen, setFullscreen] = useState(value.fullscreen ?? false)
+  const [width, setWidth] = useState(value.width || 960)
+  const [height, setHeight] = useState(value.height || 600)
+  const [alwaysOnTop, setAlwaysOnTop] = useState(value.alwaysOnTop ?? false)
+  const [resizable, setResizable] = useState(value.resizable ?? true)
+  const [frameless, setFrameless] = useState(value.frameless ?? false)
+  const [devTools, setDevTools] = useState(value.devTools ?? false)
 
   useEffect(() => {
-    onChange?.({ title, allowScripts, allowPopups, allowSameOrigin, html, css, js, fullscreen })
+    onChange?.({ title, allowPopups, html, css, js, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, allowScripts, allowPopups, allowSameOrigin, html, js, css, fullscreen])
+  }, [title, allowPopups, html, js, css, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools])
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <Checkbox checked={allowScripts} onChange={(e) => setAllowScripts(e.target.checked)}>允许脚本</Checkbox>
       <Checkbox checked={allowPopups} onChange={(e) => setAllowPopups(e.target.checked)}>允许弹窗</Checkbox>
-      <Checkbox checked={allowSameOrigin} onChange={(e) => setAllowSameOrigin(e.target.checked)}>允许同源（谨慎开启）</Checkbox>
       <Checkbox checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)}>全屏承载</Checkbox>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <Input placeholder="宽度" value={width} disabled={!!fullscreen} onChange={(e) => setWidth(Number(e.target.value) || 960)} />
+        <Input placeholder="高度" value={height} disabled={!!fullscreen} onChange={(e) => setHeight(Number(e.target.value) || 600)} />
+      </div>
+      <Checkbox checked={alwaysOnTop} onChange={(e) => setAlwaysOnTop(e.target.checked)}>窗口置顶</Checkbox>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <Checkbox checked={resizable} onChange={(e) => setResizable(e.target.checked)}>允许缩放</Checkbox>
+        <Checkbox checked={frameless} onChange={(e) => setFrameless(e.target.checked)}>无边框</Checkbox>
+      </div>
+      <Checkbox checked={devTools} onChange={(e) => setDevTools(e.target.checked)}>打开开发者工具</Checkbox>
       <Input.TextArea rows={3} placeholder="HTML" value={html} onChange={(e) => setHtml(e.target.value)} />
       <Input.TextArea rows={4} placeholder="CSS" value={css} onChange={(e) => setCss(e.target.value)} />
       <Input.TextArea rows={8} placeholder="JS" value={js} onChange={(e) => setJs(e.target.value)} />
@@ -34,170 +43,71 @@ const PageAppConfig = ({ value = {}, onChange }) => {
   )
 }
 
-function buildSrcdoc({ html, css, js, payloadJSON }) {
-  return `
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<style>${css || ''}</style>
-</head>
-<body>
-${html || ''}
-<script>
-  window.__PAYLOAD__ = ${payloadJSON};
-  function fpInvoke(name, payload){
-    return new Promise((resolve) => {
-      const id = Math.random().toString(36).slice(2)
-      function onMessage(e){
-        const d = e.data || {}
-        if(d && d.type === 'fp:resp' && d.id === id){ window.removeEventListener('message', onMessage); resolve(d.result) }
-      }
-      window.addEventListener('message', onMessage)
-      parent.postMessage({ type:'fp:invoke', id, name, payload }, '*')
-    })
-  }
-  window.fp = { invoke: fpInvoke };
-  function createApiProxy(p){
-    p = Array.isArray(p) ? p : []
-    const fn = (...args) => fpInvoke(p.join('.'), args.length > 1 ? args : args[0])
-    return new Proxy(fn, {
-      get: (target, prop) => {
-        if (prop === 'toString') return () => '[apis:' + p.join('.') + ']'
-        return createApiProxy(p.concat(String(prop)))
-      }
-    })
-  }
-  window.apis = createApiProxy([])
-  try { ${js || ''} } catch (e) { window.apis.notify('页面脚本错误: ' + e.message) }
-</script>
-</body>
-</html>`
-}
-
 async function executePageApp(trigger, context, config) {
   const title = resolveTemplate(config.title || '页面应用', context)
   const html = resolveTemplate(config.html || '<div id="app"></div>', context)
   const css = resolveTemplate(config.css || '', context)
   const js = resolveTemplate(config.js || '', context)
-
-  const modal = await ensureModal()
-  const sandboxFlags = [
-    config.allowScripts !== false ? 'allow-scripts' : '',
-    config.allowPopups !== false ? 'allow-popups' : '',
-    config.allowSameOrigin ? 'allow-same-origin' : ''
-  ].filter(Boolean).join(' ')
-
-  const payloadJSON = JSON.stringify({ trigger, context }, (_, v) => v)
-  const srcdoc = buildSrcdoc({ html, css, js, payloadJSON })
-
-  let frame
-  const useFullscreen = !!config.fullscreen
-  if (useFullscreen) {
-    const overlay = document.createElement('div')
-    overlay.style.position = 'fixed'
-    overlay.style.inset = '0'
-    overlay.style.zIndex = '9999'
-    overlay.style.background = 'rgba(0,0,0,0.45)'
-    overlay.style.display = 'flex'
-    overlay.style.alignItems = 'center'
-    overlay.style.justifyContent = 'center'
-
-    const panel = document.createElement('div')
-    panel.style.background = '#fff'
-    panel.style.width = '100vw'
-    panel.style.height = '100vh'
-    panel.style.display = 'flex'
-    panel.style.flexDirection = 'column'
-    panel.style.boxShadow = 'none'
-    panel.style.borderRadius = '0'
-
-    const header = document.createElement('div')
-    header.style.height = '44px'
-    header.style.display = 'flex'
-    header.style.alignItems = 'center'
-    header.style.justifyContent = 'space-between'
-    header.style.padding = '0 12px'
-    header.style.borderBottom = '1px solid #e5e7eb'
-    header.style.background = '#f9fafc'
-    const ttl = document.createElement('div')
-    ttl.textContent = title
-    ttl.style.fontWeight = '600'
-    header.appendChild(ttl)
-    const closeBtn = document.createElement('button')
-    closeBtn.textContent = '关闭'
-    closeBtn.style.borderRadius = '6px'
-    closeBtn.style.background = '#f9fafb'
-    closeBtn.style.color = '#111827'
-    closeBtn.style.fontWeight = '600'
-    closeBtn.onmouseenter = () => { closeBtn.style.background = '#eef2ff' }
-    closeBtn.onmouseleave = () => { closeBtn.style.background = '#f9fafb' }
-    closeBtn.onclick = () => { cleanup(); }
-    header.appendChild(closeBtn)
-
-    frame = document.createElement('iframe')
-    frame.setAttribute('sandbox', sandboxFlags)
-    frame.style.width = '100%'
-    frame.style.height = '100%'
-    frame.style.border = '0'
-    frame.srcdoc = srcdoc
-
-    panel.appendChild(header)
-    panel.appendChild(frame)
-    overlay.appendChild(panel)
-    document.body.appendChild(overlay)
-
-    function cleanup(){
-      try { overlay.remove() } catch {}
-      closeCleanup()
-    }
-
-    window.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ cleanup(); window.removeEventListener('keydown', esc) } })
-    overlay.addEventListener('click', (e)=>{ if(e.target===overlay){ cleanup() } })
-  } else {
-    const mountId = `fp-page-app-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const contentElement = React.createElement('div', { id: mountId, style: { display:'flex', flexDirection:'column', width:'100%', height: String(config.height || 600)+'px', padding:0, margin:0 } })
-    modal.info({ title, width: Number(config.width || 960), icon: null, content: contentElement, onOk() {}, onCancel() {}, okText: '关闭' })
-    setTimeout(() => {
-      const mount = document.getElementById(mountId)
-      if (!mount) return
-      frame = document.createElement('iframe')
-      frame.setAttribute('sandbox', sandboxFlags)
-      frame.style.width = '100%'
-      frame.style.flex = '1 1 auto'
-      frame.style.border = '0'
-      frame.srcdoc = srcdoc
-      mount.appendChild(frame)
-    }, 0)
+  const toBool = (v) => {
+    if (typeof v === 'boolean') return v
+    const s = String(v || '').trim().toLowerCase()
+    if (s === 'true' || s === '1' || s === 'yes') return true
+    if (s === 'false' || s === '0' || s === 'no') return false
+    return !!v
+  }
+  const toNum = (v, fallback) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : Number(fallback)
   }
 
-  const processedIds = new Set()
-  async function onMessage(e) {
-    const d = e.data || {}
-    if (d.type !== 'fp:invoke') return
-    if (!frame || e.source !== frame.contentWindow) return
-    const { id, name, payload } = d
-    if (processedIds.has(id)) return
-    processedIds.add(id)
-    const resp = (result) => {
-      try { frame.contentWindow.postMessage({ type:'fp:resp', id, result }, '*') } catch {}
-    }
-    const done = (v) => resp(v ?? true)
-    try {
-      const result = await callApi(name, payload)
-      return done(result)
-    } catch (err) {
-      systemService.showNotification('能力调用失败: ' + (err?.message || err))
-      resp({ error: String(err?.message || err) })
-    }
+  const width = toNum(resolveTemplate(String(config.width ?? 960), context), 960)
+  const height = toNum(resolveTemplate(String(config.height ?? 600), context), 600)
+  const devTools = toBool(resolveTemplate(String(config.devTools ?? false), context))
+  const fullscreen = toBool(resolveTemplate(String(config.fullscreen ?? false), context))
+  const alwaysOnTop = toBool(resolveTemplate(String(config.alwaysOnTop ?? false), context))
+  const resizable = toBool(resolveTemplate(String(config.resizable ?? true), context))
+  const frameless = toBool(resolveTemplate(String(config.frameless ?? false), context))
+  const allowPopups = toBool(resolveTemplate(String(config.allowPopups ?? true), context))
+
+  const slimContext = {
+    trigger,
+    executors: Array.isArray(context?.executors)
+      ? context.executors.map((e) => ({ key: e.key, enabled: !!e.enabled, result: e.result }))
+      : [],
+    envs: context?.envs || [],
+    vars: context?.vars || []
   }
 
-  window.addEventListener('message', onMessage)
-  const closeCleanup = () => {
-    window.removeEventListener('message', onMessage)
-    try { /* no-op */ } catch {}
+  const options = {
+    show: false,
+    title,
+    width,
+    height,
+    resizable,
+    frame: frameless ? false : true,
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      preload: 'page-app/index.cjs',
+      nativeWindowOpen: allowPopups
+    }
   }
-  // AntD Modal 在关闭后会销毁 content，这里不额外 hook；如果需要可在 modal 返回值上监听关闭
+  const win = utools.createBrowserWindow('page-app/index.html', options, () => {
+    try { if (fullscreen) win.setFullScreen(true) } catch (e) {
+      console.error("[page-app preload] set fullscreen error:", e)
+    }
+    try { if (alwaysOnTop) win.setAlwaysOnTop(true) } catch (e) {
+      console.error("[page-app preload] set always on top error:", e)
+    }
+    try { win.webContents.send('page-app:init', { title, html, css, js, payload: { trigger, context: slimContext } }) } catch (e) {
+      console.error("[page-app preload] send init error:", e)
+    }
+    try { win.show() } catch (e) {
+      console.error("[page-app preload] show error:", e)
+    }
+    try { if (devTools) win.webContents.openDevTools({ mode: 'detach' }) } catch (e) {
+      console.error("[page-app preload] open dev tools error:", e)
+    }
+  })
 }
 
 export const PageAppAction = {
@@ -206,12 +116,15 @@ export const PageAppAction = {
   getDefaultConfig() {
     return {
       title: '页面应用',
-      allowScripts: true,
+      devTools: false,
       allowPopups: true,
-      allowSameOrigin: false,
       html: '<div id="app"></div>',
       css: '',
-      js: '(() => { document.getElementById("app").innerHTML = "Hello Page"; })()'
+      js: '(() => { document.getElementById("app").innerHTML = "Hello Page"; })()',
+      width: 960,
+      height: 600,
+      fullscreen: false,
+      alwaysOnTop: false
     }
   },
   ConfigComponent: PageAppConfig,

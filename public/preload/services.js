@@ -2,8 +2,9 @@ const fsService = require('./services/fs.js')
 const systemService = require('./services/system.js')
 const platformService = require('./services/platform.js')
 const workflowsService = require('./services/workflows/index.js')
+const apisCore = require('../shared/apis-core.cjs')
 
-  window.services = {
+window.services = {
   getPlatform: platformService.getPlatform,
   readFile: fsService.readFile,
   readBinaryFile: fsService.readBinaryFile,
@@ -82,6 +83,13 @@ const workflowsService = require('./services/workflows/index.js')
     executeCommand: workflowsService.executeCommand
   }
 }
+
+// 统一在主窗口预加载阶段注入 window.apis / window.callApi
+try {
+  window.attachWindowApis = apisCore.attachWindowApis
+  window.callApi = apisCore.callApi
+  apisCore.attachWindowApis(null)
+} catch {}
 
 const defaults = require('./services/workflows/defaults.js')
 
