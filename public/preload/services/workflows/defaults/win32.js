@@ -2,7 +2,46 @@ module.exports = [
     {
       id: 'tab_demo',
       name: '示例',
-      items: [
+  items: [
+        {
+          type: 'workflow',
+          id: 'demo-page-app-showcase',
+          name: '页面应用能力演示',
+          mode: 'composed',
+          iconType: 'builtin',
+          iconKey: 'AppstoreOutlined',
+          iconColor: '#1890ff',
+          feature: {
+            enabled: true,
+            code: 'wf-page-app-showcase',
+            explain: '展示页面应用动作的完整能力（完整HTML/选择文件/分离配置）',
+            cmds: ['页面应用演示','PageApp']
+          },
+          executors: [
+            {
+              key: 'param-builder',
+              enabled: true,
+              config: {
+                cancelable: true,
+                params: [
+                  { name: 'title', label: '窗口标题', type: 'text', default: '页面应用能力演示', required: true },
+                  { name: 'fullHtml', label: '完整 HTML 内容', type: 'textarea', rows: 12, required: true, default: `<!doctype html>\n<html lang=\"zh\">\n<head>\n<meta charset=\"utf-8\"/>\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n<title>页面应用演示</title>\n<style>\nbody{margin:0;padding:24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial}\n.header{display:flex;align-items:center;gap:12px;margin-bottom:16px}\n.header .chip{display:inline-block;padding:6px 10px;border-radius:14px;background:#e6f4ff;border:1px solid #91caff;color:#0958d9;font-size:12px}\n.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}\n.card{background:#fff;border:1px solid #f0f0f0;border-radius:10px;padding:12px;overflow:hidden}\n.card h3{margin:0 0 8px 0;font-size:16px}\npre{background:#f7f7f7;border-radius:8px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}\n.btn{display:inline-block;padding:8px 12px;border-radius:8px;background:#1677ff;color:#fff;text-decoration:none}\nul{line-height:1.7}\ncode{background:#f1f1f1;border-radius:6px;padding:0 4px}\n</style>\n</head>\n<body>\n<div class=\"header\"><div class=\"chip\">window.apis 可用: <span id=\"apis\">?</span></div><div class=\"chip\">payload.vars: <span id=\"vars\">0</span></div></div>\n<div class=\"grid\">\n<div class=\"card\">\n<h3>平台能力演示</h3>\n<p><a class=\"btn\" href=\"#\" id=\"openGithub\">打开 GitHub</a></p>\n<p><a class=\"btn\" href=\"#\" id=\"save\">保存演示文本到下载目录</a></p>\n<pre id=\"meta\"></pre>\n</div>\n<div class=\"card\">\n<h3>页面脚本</h3>\n<pre id=\"log\"></pre>\n</div>\n</div>\n<div class=\"card\" style=\"margin-top:16px\">\n<h3>可用 APIs（window.apis）</h3>\n<ul>\n<li><b>system.open(url)</b> 打开外部链接，例如 <code>window.apis.system.open('https://github.com')</code></li>\n<li><b>system.notify(msg)</b> 系统通知：<code>window.apis.system.notify('Hi')</code></li>\n<li><b>system.download(text)</b> 将文本保存到下载目录，返回路径</li>\n<li><b>system.openPath(path)</b> 用系统默认程序打开文件/目录</li>\n<li><b>clipboard.copy(text)</b> 复制到剪贴板</li>\n<li><b>fs.readText(path)</b> 读取文本文件；<b>fs.readBase64(path)</b> 读取为 base64；<b>fs.readBytes(path)</b> 读取为字节</li>\n<li><b>fs.writeTextAt(path, text)</b> 写入文本；<b>fs.writeBase64At(path, b64)</b>；<b>fs.writeBytesAt(path, bytes)</b></li>\n<li><b>fs.pathExists(path)</b> 路径是否存在；<b>fs.resolveAbsolute(path)</b> 解析为绝对路径（支持环境变量）</li>\n<li><b>platform.getPlatform()</b> 返回平台标识</li>\n<li><b>exec.run(payload)</b> 执行流程内命令（高级用法）</li>\n</ul>\n</div>\n<script>\n(function(){\n  try{document.getElementById('apis').textContent = window.apis ? 'yes' : 'no'}catch(e){}\n  try{var v = (window.__PAYLOAD__ && window.__PAYLOAD__.context && window.__PAYLOAD__.context.vars) || [];document.getElementById('vars').textContent = Array.isArray(v)?v.length:0}catch(e){}\n  try{document.getElementById('openGithub').addEventListener('click', function(ev){ev.preventDefault(); try{ window.apis.system.open('https://github.com'); }catch(e){ console.error(e); }});}catch(e){}\n  try{document.getElementById('save').addEventListener('click', function(ev){ev.preventDefault();var p = window.apis && window.apis.system && window.apis.system.download ? window.apis.system.download('FlowPilot 页面应用演示\\n时间: '+ new Date().toISOString()) : null;var m = '保存结果: '+ p;document.getElementById('meta').textContent = m;});}catch(e){}\n  try{var info = { userAgent: navigator.userAgent, screen: { w: screen.width, h: screen.height } };document.getElementById('log').textContent = JSON.stringify(info, null, 2);}catch(e){}\n})();\n</script>\n</body>\n</html>` }
+                ]
+              }
+            }
+          ],
+          actions: [
+            {
+              key: 'page-app',
+              enabled: true,
+              config: {
+                title: '{{executors[0].result.value.title}}',
+                mode: 'full',
+                fullHtml: '{{executors[0].result.value.fullHtml}}'
+              }
+            }
+          ]
+        },
         {
           type: 'workflow',
           id: 'demo-open-home',

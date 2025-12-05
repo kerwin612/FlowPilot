@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Input, Checkbox } from 'antd'
+import { Input, Checkbox, Radio, Button, Space } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 
 const PageAppConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '页面应用')
   const [allowPopups, setAllowPopups] = useState(value.allowPopups ?? true)
+  const [mode, setMode] = useState(value.mode || 'split')
   const [html, setHtml] = useState(value.html || '<div id="app"></div>')
   const [css, setCss] = useState(value.css || '')
   const [js, setJs] = useState(value.js || '(() => { document.getElementById("app").innerHTML = "Hello Page"; })()')
+  const [fullHtml, setFullHtml] = useState(value.fullHtml || '')
+  const [htmlFilePath, setHtmlFilePath] = useState(value.htmlFilePath || '')
   const [fullscreen, setFullscreen] = useState(value.fullscreen ?? false)
   const [width, setWidth] = useState(value.width || 960)
   const [height, setHeight] = useState(value.height || 600)
@@ -17,9 +20,9 @@ const PageAppConfig = ({ value = {}, onChange }) => {
   const [devTools, setDevTools] = useState(value.devTools ?? false)
 
   useEffect(() => {
-    onChange?.({ title, allowPopups, html, css, js, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools })
+    onChange?.({ title, allowPopups, mode, html, css, js, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, allowPopups, html, js, css, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools])
+  }, [title, allowPopups, mode, html, js, css, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools])
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -36,18 +39,51 @@ const PageAppConfig = ({ value = {}, onChange }) => {
         <Checkbox checked={frameless} onChange={(e) => setFrameless(e.target.checked)}>无边框</Checkbox>
       </div>
       <Checkbox checked={devTools} onChange={(e) => setDevTools(e.target.checked)}>打开开发者工具</Checkbox>
-      <Input.TextArea rows={3} placeholder="HTML" value={html} onChange={(e) => setHtml(e.target.value)} />
-      <Input.TextArea rows={4} placeholder="CSS" value={css} onChange={(e) => setCss(e.target.value)} />
-      <Input.TextArea rows={8} placeholder="JS" value={js} onChange={(e) => setJs(e.target.value)} />
+      <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
+        <Radio.Button value="split">分离配置</Radio.Button>
+        <Radio.Button value="full">完整HTML</Radio.Button>
+        <Radio.Button value="file">HTML文件</Radio.Button>
+      </Radio.Group>
+      {mode === 'split' && (
+        <>
+          <Input.TextArea rows={3} placeholder="HTML" value={html} onChange={(e) => setHtml(e.target.value)} />
+          <Input.TextArea rows={4} placeholder="CSS" value={css} onChange={(e) => setCss(e.target.value)} />
+          <Input.TextArea rows={8} placeholder="JS" value={js} onChange={(e) => setJs(e.target.value)} />
+        </>
+      )}
+      {mode === 'full' && (
+        <Input.TextArea rows={12} placeholder="完整HTML内容" value={fullHtml} onChange={(e) => setFullHtml(e.target.value)} />
+      )}
+      {mode === 'file' && (
+        <Space.Compact style={{ width: '100%' }}>
+          <Input placeholder="HTML文件路径" value={htmlFilePath} onChange={(e) => setHtmlFilePath(e.target.value)} />
+          <Button onClick={async () => {
+            try {
+              const sel = await window.services?.selectPath?.({
+                title: '选择 HTML 文件',
+                properties: ['openFile'],
+                filters: [{ name: 'HTML', extensions: ['html', 'htm'] }]
+              })
+              const chosen = Array.isArray(sel) ? sel[0] : (sel && sel[0])
+              if (chosen) setHtmlFilePath(String(chosen))
+            } catch (e) {
+              window.services?.showNotification?.('选择文件失败: ' + String(e?.message || e))
+            }
+          }}>选择文件</Button>
+        </Space.Compact>
+      )}
     </div>
   )
 }
 
 async function executePageApp(trigger, context, config) {
   const title = resolveTemplate(config.title || '页面应用', context)
+  const mode = String(resolveTemplate(config.mode || 'split', context))
   const html = resolveTemplate(config.html || '<div id="app"></div>', context)
   const css = resolveTemplate(config.css || '', context)
   const js = resolveTemplate(config.js || '', context)
+  const fullHtml = resolveTemplate(config.fullHtml || '', context)
+  const htmlFilePath = resolveTemplate(config.htmlFilePath || '', context)
   const toBool = (v) => {
     if (typeof v === 'boolean') return v
     const s = String(v || '').trim().toLowerCase()
@@ -98,7 +134,7 @@ async function executePageApp(trigger, context, config) {
     try { if (alwaysOnTop) win.setAlwaysOnTop(true) } catch (e) {
       console.error("[page-app preload] set always on top error:", e)
     }
-    try { win.webContents.send('page-app:init', { title, html, css, js, payload: { trigger, context: slimContext } }) } catch (e) {
+    try { win.webContents.send('page-app:init', { title, mode, html, css, js, fullHtml, htmlFilePath, payload: { trigger, context: slimContext } }) } catch (e) {
       console.error("[page-app preload] send init error:", e)
     }
     try { win.show() } catch (e) {
@@ -118,9 +154,12 @@ export const PageAppAction = {
       title: '页面应用',
       devTools: false,
       allowPopups: true,
+      mode: 'split',
       html: '<div id="app"></div>',
       css: '',
       js: '(() => { document.getElementById("app").innerHTML = "Hello Page"; })()',
+      fullHtml: '',
+      htmlFilePath: '',
       width: 960,
       height: 600,
       fullscreen: false,

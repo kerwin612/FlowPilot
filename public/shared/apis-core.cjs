@@ -52,7 +52,7 @@ function getApis(context = null) {
     run: (req) => {
       const payload = req || {}
       const ctx = context || null
-      return (typeof window !== 'undefined' && window.services && window.services.executeCommand ? window.services.executeCommand(payload, ctx) : null)
+      return (typeof window !== 'undefined' && window.services && window.services.workflow && window.services.workflow.executeCommand ? window.services.workflow.executeCommand(payload, ctx) : null)
     }
   }
 
