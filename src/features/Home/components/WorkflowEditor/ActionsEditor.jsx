@@ -1,8 +1,9 @@
-import { memo } from 'react'
-import { Button, Space, Dropdown, Card, Switch } from 'antd'
+import { memo, useState } from 'react'
+import { Button, Space, Dropdown, Card, Switch, Modal, Typography, Alert, Collapse } from 'antd'
+import { ensureModal } from '../../../../shared/ui/modalHost'
 import { conditionRegistry } from '../../workflow/conditions/registry'
 import { Select } from 'antd'
-import { PlusOutlined, HolderOutlined } from '@ant-design/icons'
+import { PlusOutlined, HolderOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import {
   DndContext,
   closestCenter,
@@ -20,10 +21,17 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { actionRegistry } from '../../workflow/actions/registry'
 
+const helpBoxStyle = {
+  border: '1px solid #e6e6e6',
+  borderRadius: 6,
+  padding: '10px 12px',
+  background: '#fafafa'
+}
+
 /**
  * 可排序动作器项
  */
-const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChange, onConditionChange }) => {
+const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChange, onConditionChange, manualByKey }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: act.id
   })
@@ -36,6 +44,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
     transition,
     opacity: isDragging ? 0.5 : 1
   }
+  const [showHelp, setShowHelp] = useState(false)
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -55,6 +64,12 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
             <span>
               #{index + 1} {def?.label || act.key}
             </span>
+            <Button
+              type="text"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              onClick={() => setShowHelp((v) => !v)}
+            ></Button>
           </Space>
         }
         extra={
@@ -113,6 +128,92 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
             ) : null}
           </Space>
         </div>
+        
+        {showHelp && (() => {
+          const manual = def ? manualByKey?.[def.key] : null
+          if (!manual) return null
+          const c = manual.content || {}
+          const hasContent = [
+            c.overview,
+            c.fields?.length,
+            c.examples?.length,
+            c.tips?.length,
+            c.faqs?.length,
+            c.warnings?.length
+          ].some(Boolean)
+          if (!hasContent) return null
+
+          return (
+            <div style={{ marginBottom: 12, ...helpBoxStyle }}>
+              {c.overview && (
+                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                  <Typography.Text strong>概述：</Typography.Text> {c.overview}
+                </div>
+              )}
+
+              {c.fields?.length > 0 && (
+                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                  <Typography.Text strong>字段说明：</Typography.Text>
+                  <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                    {c.fields.map((f, idx) => (
+                      <li key={idx} style={{ lineHeight: 1.5 }}>
+                        <b>{f.label}</b>{f.required ? '（必填）' : ''}：{f.desc}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {c.examples?.length > 0 && (
+                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                  <Typography.Text strong>配置案例：</Typography.Text>
+                  <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                    {c.examples.map((ex, idx) => (
+                      <li key={idx} style={{ lineHeight: 1.5 }}>
+                        <b>{ex.title}：</b><code>{ex.code}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {c.tips?.length > 0 && (
+                <div style={{ fontSize: 12, color: '#595959', marginBottom: 6 }}>
+                  <Typography.Text strong>使用技巧：</Typography.Text>
+                  <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                    {c.tips.map((t, i) => (
+                      <li key={i} style={{ lineHeight: 1.5 }}>{t.text || t}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {c.faqs?.length > 0 && (
+                <div style={{ fontSize: 12, color: '#595959', marginBottom: 6 }}>
+                  <Typography.Text strong>常见问题：</Typography.Text>
+                  <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                    {c.faqs.map((f, i) => (
+                      <li key={i} style={{ lineHeight: 1.5 }}>
+                        <b>{f.q}</b> {f.a}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {c.warnings?.length > 0 && (
+                <div style={{ fontSize: 12, color: '#d46b08' }}>
+                  <Typography.Text strong>注意事项：</Typography.Text>
+                  <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                    {c.warnings.map((w, i) => (
+                      <li key={i} style={{ lineHeight: 1.5 }}>{w.text || w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {C ? (
           <C
@@ -141,7 +242,8 @@ export default function ActionsEditor({
   onToggle,
   onConfigChange,
   onConditionChange,
-  onDragEnd
+  onDragEnd,
+  manualByKey
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -184,13 +286,14 @@ export default function ActionsEditor({
                 onRemove={onRemove}
                 onConfigChange={onConfigChange}
                 onConditionChange={onConditionChange}
+                manualByKey={manualByKey}
               />
             ))}
           </Space>
         </SortableContext>
       </DndContext>
 
-      <Dropdown menu={{ items: menuItems }} placement="bottomLeft" trigger={['click']}>
+      <Dropdown menu={{ items: menuItems }} placement="bottomLeft" trigger={["click"]}>
         <Button
           type="dashed"
           icon={<PlusOutlined style={{ color: 'var(--color-success)' }} />}

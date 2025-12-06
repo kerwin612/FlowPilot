@@ -199,13 +199,43 @@ export default function AiChatbot({ open, onClose }) {
         { role: 'assistant', content: `平台信息\n${prompt.platform}` },
         { role: 'assistant', content: `输出规则\n${prompt.rules}` },
         { role: 'assistant', content: `格式与规则\n${prompt.assistantGuide}\n\n${prompt.assistantSchema}\n\n${prompt.assistantCurrentRefs ? '当前配置参考\n' + prompt.assistantCurrentRefs : ''}` },
+        { role: 'assistant', content: '如需了解执行器/动作配置、输出字段或引用方式，先调用工具 fpListManuals/fpGetManualDetail 获取手册信息。' },
         { role: 'assistant', content: `示例参考\n${prompt.assistantRefs}` },
         { role: 'user', content: prompt.userIntent }
       ]
       const tools = [
         { type: 'function', function: { name: 'fpGetPlatformType', description: '获取当前平台类型', parameters: { type: 'object', properties: {} } } },
         { type: 'function', function: { name: 'fpGetDefaultWorkflowExamples', description: '获取默认示例工作流导出JSON，供参考', parameters: { type: 'object', properties: { limit: { type: 'number' } } } } },
-        { type: 'function', function: { name: 'fpGetCurrentConfigExports', description: '获取当前配置中的工作流/文件夹导出示例', parameters: { type: 'object', properties: { limit: { type: 'number' } } } } }
+        { type: 'function', function: { name: 'fpGetCurrentConfigExports', description: '获取当前配置中的工作流/文件夹导出示例', parameters: { type: 'object', properties: { limit: { type: 'number' } } } } },
+        {
+          type: 'function',
+          function: {
+            name: 'fpListManuals',
+            description: '列出可用手册（执行器/动作），包含 key/title/summary，用于选择手册 key',
+            parameters: {
+              type: 'object',
+              properties: {
+                type: { type: 'string', enum: ['executor', 'action'] },
+                keyword: { type: 'string' }
+              }
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'fpGetManualDetail',
+            description: '按 key 获取手册详情，含字段、输出读取方式、示例等',
+            parameters: {
+              type: 'object',
+              properties: {
+                key: { type: 'string' },
+                sections: { type: 'array', items: { type: 'string' } }
+              },
+              required: ['key']
+            }
+          }
+        }
       ]
       const aiOption = { model: model || undefined, messages, tools }
       const res = systemService.ai(aiOption, (delta) => {
@@ -340,9 +370,7 @@ export default function AiChatbot({ open, onClose }) {
           <Typography.Text>示例意图</Typography.Text>
           <div style={{ flex: 1 }}>
             <Select style={{ width: '100%' }} value={preset} onChange={(v) => { setPreset(v); setInput(v) }} options={[
-              { label: '下载 URL 并保存到桌面', value: '下载指定 URL 并保存到桌面，然后弹窗展示文件路径，提供运行/仅复制命令两种入口' },
               { label: '一键打开本机硬件信息', value: '生成一个工作流点击即可打开本机硬件信息页面' },
-              { label: '编辑文本文件', value: '选择一个文本文件后用系统编辑器打开，支持从匹配指令 files 触发，编辑器命令按平台选择' }
             ]} />
           </div>
         </div>

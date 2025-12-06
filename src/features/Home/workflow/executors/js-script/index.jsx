@@ -43,7 +43,25 @@ const ScriptConfig = ({ value = {}, onChange }) => {
           assistantPrompts={[
             '脚本必须为 (context)=>{} 或 async (context)=>{} 形式，返回格式为 { value: { scriptResult } }',
             '使用模板读取变量时请注意模板仅做变量注入，不做复杂逻辑；跨执行器读取使用 context.executors[IDX]?.result?.value',
+            '如需配置/输出说明，调用工具 fpGetManualDetail key=js-script sections=["content"] 后再生成脚本。',
             placeholder
+          ]}
+          tools={[
+            {
+              type: 'function',
+              function: {
+                name: 'fpGetManualDetail',
+                description: '获取手册详情，包含配置字段和输出读取方式',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    key: { type: 'string', enum: ['js-script'] },
+                    sections: { type: 'array', items: { type: 'string' } }
+                  },
+                  required: ['key']
+                }
+              }
+            }
           ]}
           onApply={(txt) => {
             setCode(txt)

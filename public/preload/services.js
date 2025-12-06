@@ -3,6 +3,7 @@ const systemService = require('./services/system.js')
 const platformService = require('./services/platform.js')
 const workflowsService = require('./services/workflows/index.js')
 const apisCore = require('../shared/apis-core.cjs')
+const manualsService = require('./services/manuals/data.js')
 
 window.services = {
   getPlatform: platformService.getPlatform,
@@ -16,6 +17,11 @@ window.services = {
   writeBinaryFileRaw: fsService.writeBinaryFileRaw,
   writeImageFile: fsService.writeImageFile,
   getAbsolutePath: (p, context) => fsService.getAbsolutePath(p, context),
+
+  manuals: {
+    listManuals: manualsService.listManuals,
+    getManualDetail: manualsService.getManualDetail
+  },
 
   browser: systemService.browser,
   openExternal: systemService.openExternal,
@@ -95,6 +101,16 @@ const defaults = require('./services/workflows/defaults.js')
 
 window.fpGetPlatformType = () => {
   return platformService.getPlatform()
+}
+
+// AI 工具：查询手册列表
+window.fpListManuals = (opts = {}) => {
+  return manualsService.listManuals(opts)
+}
+
+// AI 工具：获取手册详情
+window.fpGetManualDetail = (opts = {}) => {
+  return manualsService.getManualDetail(opts)
 }
 
 window.fpGetDefaultWorkflowExamples = (opts = {}) => {

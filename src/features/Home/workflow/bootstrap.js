@@ -82,6 +82,7 @@ export function initializeRegistries() {
     }
   })
 
+
   initialized = true
 }
 
