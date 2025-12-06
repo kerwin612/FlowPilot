@@ -1,19 +1,14 @@
 # 显示弹窗（ShowModal）
 
 - 类型：`action`
-- 场景：展示运行结果、渲染 Markdown/HTML 说明、放置快捷操作链接。
+- 作用：以文本/HTML/Markdown 渲染弹窗，支持指令链接。
 
-## 配置
-- `title`：弹窗标题，支持模板。
-- `content`（必填）：正文内容，支持模板。
-- `contentType`：`text`（默认，自动转义换行） / `html`（会净化） / `markdown`（marked+DOMPurify）。
-- `customStyles`：可选 CSS 字符串，内联到弹窗内容区域。
+## 可配字段
+- `title`：标题
+- `content`：内容（支持模板）
+- `contentType`：`text`、`html`、`markdown`
+- `customStyles`：自定义 CSS（可选）
 
-## 交互与能力
-- 弹窗内点击 `fp:` / `fp://` 链接或 `@api(...)` 文本会通过内置 `callApi` 调用能力。
-- 普通链接会在系统浏览器中打开。
-
-## 行为
-- 模板解析 -> 内容按类型渲染 -> 弹出 600px 宽的可点遮罩弹窗。
-- 空内容会报错中止。
+## 交互
+- 支持 `fp:`、`fp://` 链接与 `@api(...)` 文本触发内置能力调用。
 

@@ -3,6 +3,7 @@ import { Input, Switch, Space, Alert } from 'antd'
 import AiButton from '../../../../../shared/ui/AiButton'
 import { resolveTemplate } from '../../engine/compile'
 import { systemService } from '../../../../../services'
+import { manualRegistry } from '../../manual/registry'
 
 // 风险命令检测（提示用，不会阻止执行）
 const RISKY_PATTERNS = [
@@ -169,3 +170,19 @@ export const CommandExecutor = {
     return { value: { command: cmd, execResult } }
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'executor',
+    key: 'command',
+    title: '命令执行（Command）',
+    summary: '解析模板生成命令并执行，支持后台运行与窗口显示。',
+    usage: '添加“命令执行”，填写模板；可引用前置执行器结果。',
+    configFields: [
+      { name: 'template', label: '命令模板', required: true, desc: '支持 {{ }} 模板' },
+      { name: 'runInBackground', label: '后台运行' },
+      { name: 'showWindow', label: '显示窗口' }
+    ],
+    tips: ['高危命令会提示风险但不阻止执行', '跨执行器取值：{{executors[IDX].result.value.execResult.result}}']
+  })
+} catch {}

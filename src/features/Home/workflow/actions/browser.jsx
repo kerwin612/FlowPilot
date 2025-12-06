@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Input } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 import { systemService } from '../../../../services'
+import { manualRegistry } from '../manual/registry'
 
 const { TextArea } = Input
 
@@ -47,3 +48,14 @@ export const BrowserAction = {
     await systemService.openBrowser(info)
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'ubrowser',
+    title: '浏览器（Browser）',
+    summary: '在内嵌浏览器中打开链接或执行浏览行为。',
+    usage: '添加“打开内置浏览器”，填写 JSON 配置。',
+    configFields: [{ name: 'json', label: 'JSON 配置', required: true }]
+  })
+} catch {}

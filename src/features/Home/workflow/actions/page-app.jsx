@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Input, Checkbox, Radio, Button, Space } from 'antd'
 import { resolveTemplate } from '../engine/compile'
+import { manualRegistry } from '../manual/registry'
 
 const PageAppConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '页面应用')
@@ -169,3 +170,28 @@ export const PageAppAction = {
   ConfigComponent: PageAppConfig,
   execute: executePageApp
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'page-app',
+    title: '页面应用（PageApp）',
+    summary: '在插件内打开页面型应用（HTML/CSS/JS或HTML文件）。',
+    usage: '添加“页面应用”，选择分离/完整/文件模式进行配置。',
+    configFields: [
+      { name: 'mode', label: '模式', desc: 'split/full/file' },
+      { name: 'html', label: 'HTML' },
+      { name: 'css', label: 'CSS' },
+      { name: 'js', label: 'JS' },
+      { name: 'fullHtml', label: '完整HTML' },
+      { name: 'htmlFilePath', label: 'HTML文件路径' },
+      { name: 'width', label: '宽度' },
+      { name: 'height', label: '高度' },
+      { name: 'fullscreen', label: '全屏' },
+      { name: 'alwaysOnTop', label: '置顶' },
+      { name: 'resizable', label: '允许缩放' },
+      { name: 'frameless', label: '无边框' },
+      { name: 'devTools', label: '开发者工具' }
+    ]
+  })
+} catch {}

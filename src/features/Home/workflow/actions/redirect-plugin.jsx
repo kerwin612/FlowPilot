@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Input, Radio, Space, Form } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 import { systemService } from '../../../../services'
+import { manualRegistry } from '../manual/registry'
 
 const { TextArea } = Input
 
@@ -176,3 +177,21 @@ export const RedirectPluginAction = {
     systemService.showNotification(`已跳转至：${targetDesc}`)
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'redirect-plugin',
+    title: '重定向插件（RedirectPlugin）',
+    summary: '将流程跳转到其他插件或模块。',
+    usage: '选择“指令名称”或“插件+指令”模式，按需传递文本或 JSON 数据。',
+    configFields: [
+      { name: 'labelType', label: '跳转方式', desc: 'single 或 precise' },
+      { name: 'labelName', label: '指令名称' },
+      { name: 'pluginName', label: '插件名称' },
+      { name: 'featureName', label: '指令名称' },
+      { name: 'payloadType', label: '传递数据类型', desc: 'none/text/json' },
+      { name: 'payload', label: '数据内容' }
+    ]
+  })
+} catch {}

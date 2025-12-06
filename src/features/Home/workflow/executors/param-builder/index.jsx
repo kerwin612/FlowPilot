@@ -5,6 +5,7 @@ import ParamFormModal from './ParamFormModal'
 import { PlusOutlined, MinusCircleOutlined, SettingOutlined, SaveOutlined } from '@ant-design/icons'
 import { WorkflowCancelError } from '../../engine/errors'
 import { resolveTemplate } from '../../engine/compile'
+import { manualRegistry } from '../../manual/registry'
 
 const { TextArea } = Input
 const { Panel } = Collapse
@@ -480,3 +481,18 @@ export const ParamBuilderExecutor = {
     return { value: normalized }
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'executor',
+    key: 'param-builder',
+    title: '参数收集（ParamBuilder）',
+    summary: '弹窗收集用户输入，支持多类型字段与模板默认值。',
+    usage: '在执行器列表添加“参数收集”，按需配置各字段。',
+    configFields: [
+      { name: 'params', label: '参数数组', desc: '包含 name/type/required/placeholder/description/default 等' },
+      { name: 'cancelable', label: '允许取消', desc: '用户可取消输入并终止流程' }
+    ],
+    tips: ['数字类型可配置范围与步长', '选择型支持行文本配置选项：值|显示文本']
+  })
+} catch {}

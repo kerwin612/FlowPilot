@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col, Typography } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { arrayMove } from '@dnd-kit/sortable'
@@ -7,7 +7,7 @@ import ExecutorsEditor from './WorkflowEditor/ExecutorsEditor'
 import ActionsEditor from './WorkflowEditor/ActionsEditor'
 import CmdsEditor from './WorkflowEditor/CmdsEditor'
 import { ensureModal } from '../../../shared/ui/modalHost'
-import { manualService } from '../../../services/manualService'
+import { manualRegistry } from '../workflow/manual/registry'
 import { executorRegistry } from '../workflow/executors/registry'
 import { actionRegistry } from '../workflow/actions/registry'
 import {
@@ -28,37 +28,6 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
   const [iconType, setIconType] = useState('icon')
   const [selectedIcon, setSelectedIcon] = useState('ThunderboltOutlined')
   const [selectedColor, setSelectedColor] = useState('#1890ff')
-  const [manualsByType, setManualsByType] = useState({ executor: [], action: [] })
-
-  useEffect(() => {
-    const loadManuals = async () => {
-      const types = ['executor', 'action']
-      const result = { executor: [], action: [] }
-      for (const t of types) {
-        try {
-          const list = await manualService.listManuals({ type: t })
-          const details = await Promise.all(
-            (list || []).map((it) => manualService.getManualDetail({ key: it.key }))
-          )
-          result[t] = details.filter(Boolean)
-        } catch (e) {
-          console.warn('加载手册失败', t, e)
-        }
-      }
-      setManualsByType(result)
-    }
-    loadManuals()
-  }, [])
-
-  const manualByKey = useMemo(() => {
-    const map = {}
-    ;['executor', 'action'].forEach((t) => {
-      (manualsByType[t] || []).forEach((m) => {
-        map[m.key] = m
-      })
-    })
-    return map
-  }, [manualsByType])
   const [previewImage, setPreviewImage] = useState(null)
   const [hovering, setHovering] = useState(false)
   const [featureEnabled, setFeatureEnabled] = useState(false)
@@ -310,104 +279,44 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
               <span>执行器</span>
               <Button type="link" style={{ padding: 0, height: 'auto', fontSize: 13 }} onClick={async () => {
                 const modal = await ensureModal()
-                const manuals = manualsByType.executor || []
+                const manuals = manualRegistry.all().filter(m=>m.type==='executor')
                 if (!manuals.length) return
-                const items = manuals.map((m) => ({
+                const items = manuals.map((m)=>({
                   key: m.key,
                   label: m.title,
                   children: (
-                    <div style={{ fontSize: 13 }}>
-                      <div style={{ marginBottom: 8 }}><Typography.Text strong>概述：</Typography.Text> {m.content.overview}</div>
-                      {m.content.scenarios?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>典型场景：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.scenarios.map((s, i) => <li key={i}><b>{s.title}：</b>{s.desc}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.fields?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>字段详解：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.fields.map((f, i) => <li key={i}><b>{f.label}：</b>{f.desc}{f.required ? '（必填）' : ''}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.examples?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>配置案例：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.examples.map((ex, i) => <li key={i}><b>{ex.title}：</b><code>{ex.code}</code></li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.tips?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>使用技巧：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.tips.map((t, i) => <li key={i}>{t.text}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.faqs?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>常见问题：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.faqs.map((f, i) => <li key={i}><b>{f.q}</b><br/>{f.a}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.warnings?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>注意事项：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18, color: '#d46b08' }}>
-                            {m.content.warnings.map((w, i) => <li key={i}>{w.text}</li>)}
-                          </ul>
-                        </div>
-                      )}
+                    <div>
+                      {m.summary && <div style={{ marginBottom: 8 }}>{m.summary}</div>}
+                      {m.usage && <div style={{ marginBottom: 8 }}><Typography.Text strong>用法：</Typography.Text> {m.usage}</div>}
                     </div>
                   )
                 }))
-
                 const intro = (
-                  <div style={{ marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ marginBottom: 12 }}>
                     <Typography.Text strong>什么是执行器？</Typography.Text>
-                    <div style={{ marginTop: 6 }}>
-                      执行器用于产生或加工数据，按列表顺序依次运行，并将结果写入上下文，供后续步骤引用。
+                    <div style={{ fontSize: 12 }}>
+                      执行器用于产生或加工数据，按列表顺序依次运行，并将结果写入上下文（可被后续步骤引用）。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       引用示例：{'{{executors[0].result.value.xxx}}'}、{'{{executors[0].result.value.execResult.result}}'}、{'{{envs.KEY}}'}、{'{{vars.NAME}}'}、{'{{trigger.payload}}'}。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       组合示例：步骤1 参数收集 → 步骤2 命令执行（模板注入步骤1值） → 步骤3 脚本执行读取步骤2输出并结构化。
                     </div>
                   </div>
                 )
-
                 const ability = (
-                  <div style={{ marginTop: 12, fontSize: 13 }}>
+                  <div style={{ marginTop: 12 }}>
                     <Typography.Text strong>能力说明</Typography.Text>
-                    <div style={{ marginTop: 6 }}>
-                      执行器可设置条件决定是否运行；模板变量在执行时解析最新上下文；执行结果可供动作器或后续执行器继续使用。
+                    <div style={{ fontSize: 12 }}>
+                      执行器与动作器可自由搭配，且每个步骤可设置条件决定是否运行。模板变量会在执行时解析到最新上下文。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       快速示例：参数收集 → 命令执行：命令写法 {'"echo {{executors[0].result.value.text}}"'}；脚本中读取命令输出 {'String(context.executors[1]?.result?.value?.execResult?.result || "")'}。
                     </div>
                   </div>
                 )
-
-                modal.info({
-                  title: '执行器配置指南',
-                  content: (
-                    <div>
-                      {intro}
-                      <Collapse items={items} accordion />
-                      {ability}
-                    </div>
-                  ),
-                  width: 800
-                })
+                modal.info({ title: '执行器配置指南', content: (<div>{intro}<Collapse items={items} accordion />{ability}</div>), width: 720 })
               }}>如何配置执行器？</Button>
             </span>}>
               <ExecutorsEditor
@@ -418,7 +327,6 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onConfigChange={updateExecutorConfig}
                 onConditionChange={updateExecutorCondition}
                 onDragEnd={handleExecutorDragEnd}
-                manualByKey={manualByKey}
               />
             </Form.Item>
 
@@ -426,104 +334,44 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
               <span>动作器</span>
               <Button type="link" style={{ padding: 0, height: 'auto', fontSize: 13 }} onClick={async () => {
                 const modal = await ensureModal()
-                const manuals = manualsByType.action || []
+                const manuals = manualRegistry.all().filter(m=>m.type==='action')
                 if (!manuals.length) return
-                const items = manuals.map((m) => ({
+                const items = manuals.map((m)=>({
                   key: m.key,
                   label: m.title,
                   children: (
-                    <div style={{ fontSize: 13 }}>
-                      <div style={{ marginBottom: 8 }}><Typography.Text strong>概述：</Typography.Text> {m.content.overview}</div>
-                      {m.content.scenarios?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>典型场景：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.scenarios.map((s, i) => <li key={i}><b>{s.title}：</b>{s.desc}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.fields?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>字段详解：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.fields.map((f, i) => <li key={i}><b>{f.label}：</b>{f.desc}{f.required ? '（必填）' : ''}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.examples?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>配置案例：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.examples.map((ex, i) => <li key={i}><b>{ex.title}：</b><code>{ex.code}</code></li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.tips?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>使用技巧：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.tips.map((t, i) => <li key={i}>{t.text}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.faqs?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>常见问题：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {m.content.faqs.map((f, i) => <li key={i}><b>{f.q}</b><br/>{f.a}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {m.content.warnings?.length > 0 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <Typography.Text strong>注意事项：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18, color: '#d46b08' }}>
-                            {m.content.warnings.map((w, i) => <li key={i}>{w.text}</li>)}
-                          </ul>
-                        </div>
-                      )}
+                    <div>
+                      {m.summary && <div style={{ marginBottom: 8 }}>{m.summary}</div>}
+                      {m.usage && <div style={{ marginBottom: 8 }}><Typography.Text strong>用法：</Typography.Text> {m.usage}</div>}
                     </div>
                   )
                 }))
-
                 const intro = (
-                  <div style={{ marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ marginBottom: 12 }}>
                     <Typography.Text strong>什么是动作器？</Typography.Text>
-                    <div style={{ marginTop: 6 }}>
-                      动作器用于触发对外行为或呈现结果（打开链接/路径、显示弹窗、浏览器行为、页面应用、重定向等），通常读取前置执行器输出。
+                    <div style={{ fontSize: 12 }}>
+                      动作器用于触发对外行为或呈现结果（打开链接/路径、显示弹窗、浏览器行为、页面应用、重定向等），通常读取前置执行器的输出。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       引用示例：在文本/命令/路径/弹窗内容中写入 {'{{executors[IDX].result.value.xxx}}'}；弹窗支持 Markdown/HTML 与内置能力链接。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       组合示例：脚本执行生成内容 → 写入剪贴板动作器模板填入 {'{{executors[0].result.value.scriptResult}}'} 即可复制结果。
                     </div>
                   </div>
                 )
-
                 const ability = (
-                  <div style={{ marginTop: 12, fontSize: 13 }}>
+                  <div style={{ marginTop: 12 }}>
                     <Typography.Text strong>能力说明</Typography.Text>
-                    <div style={{ marginTop: 6 }}>
-                      执行器与动作器按顺序串联，动作器可读取任意前置执行器输出，并可通过条件控制是否触发；模板变量运行时解析最新上下文。
+                    <div style={{ fontSize: 12 }}>
+                      执行器与动作器按顺序串联，动作器可读取任意前置执行器的输出，并可通过条件控制是否触发。
                     </div>
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
                       快速示例：命令执行 → 显示弹窗：弹窗内容写 {'"命令输出：{{executors[0].result.value.execResult.result}}"'}，支持 Markdown 展示与链接交互。
                     </div>
                   </div>
                 )
-
-                modal.info({
-                  title: '动作器配置指南',
-                  content: (
-                    <div>
-                      {intro}
-                      <Collapse items={items} accordion />
-                      {ability}
-                    </div>
-                  ),
-                  width: 800
-                })
+                modal.info({ title: '动作器配置指南', content: (<div>{intro}<Collapse items={items} accordion />{ability}</div>), width: 720 })
               }}>如何配置动作器？</Button>
             </span>}>
               <ActionsEditor
@@ -534,7 +382,6 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onConfigChange={updateActionConfig}
                 onConditionChange={updateActionCondition}
                 onDragEnd={handleActionDragEnd}
-                manualByKey={manualByKey}
               />
             </Form.Item>
 
@@ -554,28 +401,11 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                   key: 'entry-triggers',
                   label: (
                     <span style={{ fontWeight: 500 }}>
-                      🔀 多入口触发（入口菜单）
+                      多入口触发（入口菜单）
                     </span>
                   ),
                   children: (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <div style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '10px 12px', background: '#fafafa' }}>
-                        <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
-                          <Typography.Text strong>概述：</Typography.Text> 为同一工作流配置多个入口（菜单项），可按不同指令/匹配方式触发同一流程。
-                        </div>
-                        <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
-                          <Typography.Text strong>字段提示：</Typography.Text>
-                          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                            <li>入口名称：显示在入口菜单中的文案。</li>
-                            <li>触发类型值：作为匹配值/指令值（需与触发方式一致）。</li>
-                            <li>启用：可按需临时关闭某入口。</li>
-                          </ul>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#595959' }}>
-                          <Typography.Text strong>示例：</Typography.Text> 如“打开项目 A”“打开项目 B”，匹配不同目录或参数。
-                        </div>
-                      </div>
-
                       <List
                         split={false}
                         dataSource={entryTriggers}
@@ -681,23 +511,6 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                     ),
                     children: (
                       <Space direction="vertical" style={{ width: '100%' }}>
-                        <div style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '10px 12px', background: '#fafafa' }}>
-                          <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
-                            <Typography.Text strong>概述：</Typography.Text> 将工作流暴露为 uTools 动态指令，可在搜索框/匹配规则中触发。
-                          </div>
-                          <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
-                            <Typography.Text strong>字段提示：</Typography.Text>
-                            <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                              <li>启用动态指令：开启后才会注册。</li>
-                              <li>指令说明：显示在 uTools 搜索面板的描述文案。</li>
-                              <li>触发指令：支持功能指令、文件/正则匹配、超级面板等。</li>
-                            </ul>
-                          </div>
-                          <div style={{ fontSize: 12, color: '#595959' }}>
-                            <Typography.Text strong>示例：</Typography.Text> 如“复制时间戳”“打开项目目录”，分别配置不同触发词或匹配规则。
-                          </div>
-                        </div>
-
                         <Form.Item label="启用动态指令">
                           <Switch checked={featureEnabled} onChange={setFeatureEnabled} />
                         </Form.Item>

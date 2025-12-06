@@ -3,6 +3,7 @@ import { Input, Button, Space } from 'antd'
 import { FolderOpenOutlined, FileOutlined } from '@ant-design/icons'
 import { resolveTemplate } from '../engine/compile'
 import { systemService } from '../../../../services'
+import { manualRegistry } from '../manual/registry'
 
 const OpenPathConfig = ({ value = {}, onChange }) => {
   const [path, setPath] = useState(value.path || '')
@@ -72,3 +73,14 @@ export const OpenPathAction = {
     await systemService.openPath(p)
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'open-path',
+    title: '打开路径（OpenPath）',
+    summary: '打开文件或目录，支持变量填充与快捷选择。',
+    usage: '添加“打开路径”，可通过按钮选择文件/文件夹。',
+    configFields: [{ name: 'path', label: '路径模板', required: true }]
+  })
+} catch {}

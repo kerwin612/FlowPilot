@@ -1,20 +1,21 @@
 # 脚本执行（JS Script）
 
 - 类型：`executor`
-- 场景：格式化前置输出、分支决策、组装批量命令/URL。
+- 作用：以 JS 函数运行脚本逻辑，产出对象。
 
-## 配置
-- `code`（必填）：`(context)=>{}` 或 `async (context)=>{}`，整体支持一次性模板替换。
+## 用法
+- 在“执行器”中添加“脚本执行”，输入 `(context)=>{}` 或 `async (context)=>{}`。
+- 支持一次性模板替换整体代码文本。
 
-## 可用上下文
-- `context = { workflow, trigger, envs, vars, executors }`。
-- 示例：`const out = context.executors[0]?.result?.value?.execResult?.result || ''`。
+## 可配字段
+- `code`：脚本代码文本（必填）
 
-## 输出（后续引用）
-- 返回值写入 `executors[IDX].result.value`。
-- 默认包装为 `{ value: { scriptResult: <你的返回> } }`；若直接返回 `{ value: {...} }` 则按原样写入。
+## 上下文读取示例
+- 读取前置命令输出：
+  `String(context.executors[IDX]?.result?.value?.execResult?.result || '')`
+- 读写文件：`context.fs.readText(path)`、`context.fs.writeTextAt(path, text)` 等
 
-## 小贴士
-- 支持 async/await，直接抛错即可让流程失败并提示。
-- 可结合 `context.envs`、`context.vars` 与模板生成下一步命令或链接。
+## 返回值规范
+- 返回对象或基本值会被包装：`{ value: { scriptResult: ... } }`
+- 若直接返回 `{ value: {...} }` 则保持不变。
 

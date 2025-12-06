@@ -6,6 +6,7 @@ import { systemService } from '../../../../services'
 import { callApi, attachWindowApis } from '../engine/apis'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { manualRegistry } from '../manual/registry'
 
 const { TextArea } = Input
 
@@ -196,6 +197,22 @@ export const ShowModalAction = {
     }, 50)
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'show-modal',
+    title: '显示弹窗（ShowModal）',
+    summary: '以文本/HTML/Markdown 渲染弹窗，支持指令链接。',
+    usage: '添加“显示弹窗”，配置标题/内容/类型/样式。',
+    configFields: [
+      { name: 'title', label: '标题' },
+      { name: 'content', label: '内容', required: true },
+      { name: 'contentType', label: '内容类型', desc: 'text/html/markdown' },
+      { name: 'customStyles', label: '自定义样式' }
+    ]
+  })
+} catch {}
 
 // 统一能力入口通过 callApi 提供
 

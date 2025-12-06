@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Input, Button, Space, Typography, List, Row, Col, Select } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { resolveTemplate } from '../../engine/compile'
+import { manualRegistry } from '../../manual/registry'
 
 const EnvRow = ({ idx, item, onChange, onRemove }) => {
   const [name, setName] = useState(item?.name || '')
@@ -128,3 +129,15 @@ export const EnvPatchExecutor = {
     return { value: { patch, removed } }
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'executor',
+    key: 'env-patch',
+    title: '环境变量变更（EnvPatch）',
+    summary: '修改上下文环境变量，影响后续步骤。',
+    usage: '添加“环境变量变更”，配置设置或移除项。',
+    configFields: [{ name: 'entries', label: '变量项', desc: 'name/value/op(set/remove)，value 支持模板' }],
+    tips: ['模板示例：{{envs.KEY}}、{{vars.NAME}}、{{executors[N].result.value.xxx}}']
+  })
+} catch {}
