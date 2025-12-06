@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col } from 'antd'
+import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col, Typography } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { arrayMove } from '@dnd-kit/sortable'
 import IconPicker from './WorkflowEditor/IconPicker'
 import ExecutorsEditor from './WorkflowEditor/ExecutorsEditor'
 import ActionsEditor from './WorkflowEditor/ActionsEditor'
 import CmdsEditor from './WorkflowEditor/CmdsEditor'
+import { ensureModal } from '../../../shared/ui/modalHost'
+import { manualRegistry } from '../workflow/manual/registry'
 import { executorRegistry } from '../workflow/executors/registry'
 import { actionRegistry } from '../workflow/actions/registry'
 import {
@@ -273,7 +275,50 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
         {type !== ITEM_TYPE_FOLDER && (
           <>
-            <Form.Item label="执行器">
+            <Form.Item label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span>执行器</span>
+              <Button type="link" style={{ padding: 0, height: 'auto', fontSize: 13 }} onClick={async () => {
+                const modal = await ensureModal()
+                const manuals = manualRegistry.all().filter(m=>m.type==='executor')
+                if (!manuals.length) return
+                const items = manuals.map((m)=>({
+                  key: m.key,
+                  label: m.title,
+                  children: (
+                    <div>
+                      {m.summary && <div style={{ marginBottom: 8 }}>{m.summary}</div>}
+                      {m.usage && <div style={{ marginBottom: 8 }}><Typography.Text strong>用法：</Typography.Text> {m.usage}</div>}
+                    </div>
+                  )
+                }))
+                const intro = (
+                  <div style={{ marginBottom: 12 }}>
+                    <Typography.Text strong>什么是执行器？</Typography.Text>
+                    <div style={{ fontSize: 12 }}>
+                      执行器用于产生或加工数据，按列表顺序依次运行，并将结果写入上下文（可被后续步骤引用）。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      引用示例：{'{{executors[0].result.value.xxx}}'}、{'{{executors[0].result.value.execResult.result}}'}、{'{{envs.KEY}}'}、{'{{vars.NAME}}'}、{'{{trigger.payload}}'}。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      组合示例：步骤1 参数收集 → 步骤2 命令执行（模板注入步骤1值） → 步骤3 脚本执行读取步骤2输出并结构化。
+                    </div>
+                  </div>
+                )
+                const ability = (
+                  <div style={{ marginTop: 12 }}>
+                    <Typography.Text strong>能力说明</Typography.Text>
+                    <div style={{ fontSize: 12 }}>
+                      执行器与动作器可自由搭配，且每个步骤可设置条件决定是否运行。模板变量会在执行时解析到最新上下文。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      快速示例：参数收集 → 命令执行：命令写法 {'"echo {{executors[0].result.value.text}}"'}；脚本中读取命令输出 {'String(context.executors[1]?.result?.value?.execResult?.result || "")'}。
+                    </div>
+                  </div>
+                )
+                modal.info({ title: '执行器配置指南', content: (<div>{intro}<Collapse items={items} accordion />{ability}</div>), width: 720 })
+              }}>如何配置执行器？</Button>
+            </span>}>
               <ExecutorsEditor
                 executors={executors}
                 onAdd={addExecutor}
@@ -285,7 +330,50 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
               />
             </Form.Item>
 
-            <Form.Item label="动作器">
+            <Form.Item label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span>动作器</span>
+              <Button type="link" style={{ padding: 0, height: 'auto', fontSize: 13 }} onClick={async () => {
+                const modal = await ensureModal()
+                const manuals = manualRegistry.all().filter(m=>m.type==='action')
+                if (!manuals.length) return
+                const items = manuals.map((m)=>({
+                  key: m.key,
+                  label: m.title,
+                  children: (
+                    <div>
+                      {m.summary && <div style={{ marginBottom: 8 }}>{m.summary}</div>}
+                      {m.usage && <div style={{ marginBottom: 8 }}><Typography.Text strong>用法：</Typography.Text> {m.usage}</div>}
+                    </div>
+                  )
+                }))
+                const intro = (
+                  <div style={{ marginBottom: 12 }}>
+                    <Typography.Text strong>什么是动作器？</Typography.Text>
+                    <div style={{ fontSize: 12 }}>
+                      动作器用于触发对外行为或呈现结果（打开链接/路径、显示弹窗、浏览器行为、页面应用、重定向等），通常读取前置执行器的输出。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      引用示例：在文本/命令/路径/弹窗内容中写入 {'{{executors[IDX].result.value.xxx}}'}；弹窗支持 Markdown/HTML 与内置能力链接。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      组合示例：脚本执行生成内容 → 写入剪贴板动作器模板填入 {'{{executors[0].result.value.scriptResult}}'} 即可复制结果。
+                    </div>
+                  </div>
+                )
+                const ability = (
+                  <div style={{ marginTop: 12 }}>
+                    <Typography.Text strong>能力说明</Typography.Text>
+                    <div style={{ fontSize: 12 }}>
+                      执行器与动作器按顺序串联，动作器可读取任意前置执行器的输出，并可通过条件控制是否触发。
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      快速示例：命令执行 → 显示弹窗：弹窗内容写 {'"命令输出：{{executors[0].result.value.execResult.result}}"'}，支持 Markdown 展示与链接交互。
+                    </div>
+                  </div>
+                )
+                modal.info({ title: '动作器配置指南', content: (<div>{intro}<Collapse items={items} accordion />{ability}</div>), width: 720 })
+              }}>如何配置动作器？</Button>
+            </span>}>
               <ActionsEditor
                 actions={actions}
                 onAdd={addAction}

@@ -3,6 +3,7 @@ import { Input, Space } from 'antd'
 import AiButton from '../../../../../shared/ui/AiButton'
 import { resolveTemplate } from '../../engine/compile'
 import { systemService } from '../../../../../services'
+import { manualRegistry } from '../../manual/registry'
 
 const { TextArea } = Input
 
@@ -150,3 +151,15 @@ export const ScriptExecutor = {
     return valueObj
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'executor',
+    key: 'js-script',
+    title: '脚本执行（JS Script）',
+    summary: '以 JS 函数运行脚本，返回对象写入上下文。',
+    usage: '添加“脚本执行”，输入 (context)=>{} 或 async (context)=>{}。',
+    configFields: [{ name: 'code', label: '脚本代码', required: true, desc: '整体一次模板替换' }],
+    tips: ['读取前置命令输出请做 String(...||\'\') 与 split(/\\r?\\n/)']
+  })
+} catch {}

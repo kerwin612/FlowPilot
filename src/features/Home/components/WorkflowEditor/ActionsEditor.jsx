@@ -1,8 +1,9 @@
-import { memo } from 'react'
-import { Button, Space, Dropdown, Card, Switch } from 'antd'
+import { memo, useState } from 'react'
+import { Button, Space, Dropdown, Card, Switch, Modal, Typography, Alert, Collapse } from 'antd'
+import { ensureModal } from '../../../../shared/ui/modalHost'
 import { conditionRegistry } from '../../workflow/conditions/registry'
 import { Select } from 'antd'
-import { PlusOutlined, HolderOutlined } from '@ant-design/icons'
+import { PlusOutlined, HolderOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import {
   DndContext,
   closestCenter,
@@ -19,6 +20,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { actionRegistry } from '../../workflow/actions/registry'
+import { manualRegistry } from '../../workflow/manual/registry'
 
 /**
  * 可排序动作器项
@@ -36,6 +38,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
     transition,
     opacity: isDragging ? 0.5 : 1
   }
+  const [showHelp, setShowHelp] = useState(false)
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -55,6 +58,12 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
             <span>
               #{index + 1} {def?.label || act.key}
             </span>
+            <Button
+              type="text"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              onClick={() => setShowHelp((v) => !v)}
+            ></Button>
           </Space>
         }
         extra={
@@ -124,6 +133,44 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
         ) : (
           <div>无配置</div>
         )}
+
+        {showHelp && (() => {
+          const manual = def ? manualRegistry.get(def.key) : null
+          const fields = manual && Array.isArray(manual.configFields) ? manual.configFields : []
+          const tips = manual && Array.isArray(manual.tips) ? manual.tips : []
+          if (!fields.length && !tips.length) return null
+          return (
+            <div style={{ marginTop: 12 }}>
+              {fields.length > 0 && (
+                <Alert
+                  type="info"
+                  message={<span style={{ fontWeight: 500 }}>字段说明</span>}
+                  description={
+                    <div>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {fields.map((f, idx) => (
+                          <li key={idx} style={{ fontSize: 12 }}>
+                            {(f.label || f.name) + (f.required ? '（必填）' : '') + (f.desc ? `：${f.desc}` : '')}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  }
+                />
+              )}
+              {tips.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <Typography.Text type="secondary">使用建议：</Typography.Text>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {tips.map((t, i) => (
+                      <li key={i} style={{ fontSize: 12 }}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </Card>
     </div>
   )
@@ -190,7 +237,7 @@ export default function ActionsEditor({
         </SortableContext>
       </DndContext>
 
-      <Dropdown menu={{ items: menuItems }} placement="bottomLeft" trigger={['click']}>
+      <Dropdown menu={{ items: menuItems }} placement="bottomLeft" trigger={["click"]}>
         <Button
           type="dashed"
           icon={<PlusOutlined style={{ color: 'var(--color-success)' }} />}

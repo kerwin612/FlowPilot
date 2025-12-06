@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Input } from 'antd'
 import { resolveTemplate } from '../engine/compile'
 import { systemService } from '../../../../services'
+import { manualRegistry } from '../manual/registry'
 
 const OpenLinkConfig = ({ value = {}, onChange }) => {
   const [url, setUrl] = useState(value.url || '')
@@ -31,3 +32,14 @@ export const OpenLinkAction = {
     await systemService.openExternal(url)
   }
 }
+
+try {
+  manualRegistry.register({
+    type: 'action',
+    key: 'open-link',
+    title: '打开链接（OpenLink）',
+    summary: '解析 URL 模板并在系统默认浏览器打开。',
+    usage: '添加“打开链接”，填写 URL 模板。',
+    configFields: [{ name: 'url', label: '链接模板', required: true }]
+  })
+} catch {}
