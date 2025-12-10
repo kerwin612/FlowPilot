@@ -5,6 +5,7 @@ import { resolveTemplate } from '../engine/compile'
 const PageAppConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '页面应用')
   const [allowPopups, setAllowPopups] = useState(value.allowPopups ?? true)
+  const [singleton, setSingleton] = useState(value.singleton ?? false)
   const [mode, setMode] = useState(value.mode || 'split')
   const [html, setHtml] = useState(value.html || '<div id="app"></div>')
   const [css, setCss] = useState(value.css || '')
@@ -20,14 +21,15 @@ const PageAppConfig = ({ value = {}, onChange }) => {
   const [devTools, setDevTools] = useState(value.devTools ?? false)
 
   useEffect(() => {
-    onChange?.({ title, allowPopups, mode, html, css, js, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools })
+    onChange?.({ title, allowPopups, singleton, mode, html, css, js, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, allowPopups, mode, html, js, css, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools])
+  }, [title, allowPopups, singleton, mode, html, js, css, fullHtml, htmlFilePath, fullscreen, width, height, alwaysOnTop, resizable, frameless, devTools])
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
       <Checkbox checked={allowPopups} onChange={(e) => setAllowPopups(e.target.checked)}>允许弹窗</Checkbox>
+      <Checkbox checked={singleton} onChange={(e) => setSingleton(e.target.checked)}>单例模式（同一工作流只保留一个窗口）</Checkbox>
       <Checkbox checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)}>全屏承载</Checkbox>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <Input placeholder="宽度" value={width} disabled={!!fullscreen} onChange={(e) => setWidth(Number(e.target.value) || 960)} />
@@ -76,14 +78,11 @@ const PageAppConfig = ({ value = {}, onChange }) => {
   )
 }
 
+// 存储工作流对应的窗口实例（key: workflowId）
+const pageAppWindows = new Map()
+
 async function executePageApp(trigger, context, config) {
-  const title = resolveTemplate(config.title || '页面应用', context)
-  const mode = String(resolveTemplate(config.mode || 'split', context))
-  const html = resolveTemplate(config.html || '<div id="app"></div>', context)
-  const css = resolveTemplate(config.css || '', context)
-  const js = resolveTemplate(config.js || '', context)
-  const fullHtml = resolveTemplate(config.fullHtml || '', context)
-  const htmlFilePath = resolveTemplate(config.htmlFilePath || '', context)
+  // 定义工具函数
   const toBool = (v) => {
     if (typeof v === 'boolean') return v
     const s = String(v || '').trim().toLowerCase()
@@ -95,6 +94,29 @@ async function executePageApp(trigger, context, config) {
     const n = Number(v)
     return Number.isFinite(n) ? n : Number(fallback)
   }
+
+  const title = resolveTemplate(config.title || '页面应用', context)
+  const mode = String(resolveTemplate(config.mode || 'split', context))
+  const singleton = toBool(resolveTemplate(String(config.singleton ?? false), context))
+  
+  // 如果开启单例模式且存在旧窗口，先关闭它
+  const workflowId = context?.workflow?.id
+  if (singleton && workflowId && pageAppWindows.has(workflowId)) {
+    try {
+      const oldWin = pageAppWindows.get(workflowId)
+      if (oldWin && typeof oldWin.close === 'function') {
+        oldWin.close()
+      }
+      pageAppWindows.delete(workflowId)
+    } catch (e) {
+      console.error('[page-app] close old window error:', e)
+    }
+  }
+  const html = resolveTemplate(config.html || '<div id="app"></div>', context)
+  const css = resolveTemplate(config.css || '', context)
+  const js = resolveTemplate(config.js || '', context)
+  const fullHtml = resolveTemplate(config.fullHtml || '', context)
+  const htmlFilePath = resolveTemplate(config.htmlFilePath || '', context)
 
   const width = toNum(resolveTemplate(String(config.width ?? 960), context), 960)
   const height = toNum(resolveTemplate(String(config.height ?? 600), context), 600)
@@ -128,6 +150,21 @@ async function executePageApp(trigger, context, config) {
     }
   }
   const win = utools.createBrowserWindow('page-app/index.html', options, () => {
+    // 如果开启单例模式，保存窗口实例
+    if (singleton && workflowId) {
+      pageAppWindows.set(workflowId, win)
+      // 监听窗口关闭事件，清理 Map
+      try {
+        win.on('closed', () => {
+          if (pageAppWindows.get(workflowId) === win) {
+            pageAppWindows.delete(workflowId)
+          }
+        })
+      } catch (e) {
+        console.error('[page-app] setup close listener error:', e)
+      }
+    }
+    
     try { if (fullscreen) win.setFullScreen(true) } catch (e) {
       console.error("[page-app preload] set fullscreen error:", e)
     }
@@ -154,6 +191,7 @@ export const PageAppAction = {
       title: '页面应用',
       devTools: false,
       allowPopups: true,
+      singleton: false,
       mode: 'split',
       html: '<div id="app"></div>',
       css: '',
