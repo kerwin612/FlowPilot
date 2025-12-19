@@ -554,7 +554,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                   key: 'entry-triggers',
                   label: (
                     <span style={{ fontWeight: 500 }}>
-                      🔀 多入口触发（入口菜单）
+                      ⭐ 多入口触发（入口菜单）
                     </span>
                   ),
                   children: (
@@ -661,7 +661,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                     key: 'feature',
                     label: (
                       <span style={{ fontWeight: 500 }}>
-                        ⚡ 快捷触发配置（动态指令）
+                        🚀 快捷触发配置（动态指令）
                         {featureEnabled && (
                           <span
                             style={{
