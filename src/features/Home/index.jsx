@@ -32,6 +32,7 @@ export default function Home({ enterAction: _enterAction }) {
 
   // 当搜索关键词变化时，自动切换到搜索 tab
   useEffect(() => {
+    console.log(`[搜索框] 输入变化: "${filter}"`)
     if (filter) {
       setActiveTabKey('search')
     }
@@ -66,10 +67,142 @@ export default function Home({ enterAction: _enterAction }) {
     })
   )
 
+  // 搜索元数据：记录每个工作流的匹配信息
+  const searchMetadata = {}
+
   // 搜索结果（独立计算，不受 activeTabKey 影响）
-  const searchResults = allWorkflows.filter((it) =>
-    (it.name || '').toLowerCase().includes(filter.toLowerCase())
-  )
+  // 兼容 uTools 的搜索和匹配逻辑
+  const searchResults = allWorkflows.filter((it) => {
+    searchMetadata[it.id] = { matched: false }
+
+    // 按名称搜索
+    if ((it.name || '').toLowerCase().includes(filter.toLowerCase())) {
+      searchMetadata[it.id].matched = true
+      return true
+    }
+
+    // 按【快捷触发配置（动态指令）】搜索 - 兼容 uTools cmds 逻辑
+    if (it.feature?.enabled && it.feature?.cmds) {
+      const cmds = it.feature.cmds
+
+      for (const cmd of cmds) {
+        // 功能指令：字符串类型，直接字符串匹配
+        if (typeof cmd === 'string') {
+          const matches = cmd.toLowerCase().includes(filter.toLowerCase())
+          if (matches) {
+            searchMetadata[it.id].matched = true
+            console.log(`[搜索] ✓ 工作流 "${it.name}" 通过功能指令 "${cmd}" 匹配`)
+            return true
+          }
+        }
+
+        // 匹配指令：对象类型
+        if (typeof cmd === 'object' && cmd !== null) {
+          const cmdType = cmd.type
+
+          // regex：正则匹配
+          if (cmdType === 'regex') {
+            try {
+              const regexPattern = cmd.match
+              if (!regexPattern) {
+                console.log(`[搜索] regex 指令缺少 match 字段`)
+                continue
+              }
+
+              // 解析正则表达式（支持 /pattern/flags 格式）
+              let regex
+              if (regexPattern.startsWith('/')) {
+                const lastSlashIdx = regexPattern.lastIndexOf('/')
+                const pattern = regexPattern.slice(1, lastSlashIdx)
+                const flags = regexPattern.slice(lastSlashIdx + 1)
+                regex = new RegExp(pattern, flags)
+              } else {
+                regex = new RegExp(regexPattern)
+              }
+
+              // 检查长度限制
+              if (cmd.minLength && filter.length < cmd.minLength) {
+                console.log(`[搜索] regex 长度不符: ${filter.length} < ${cmd.minLength}`)
+                continue
+              }
+              if (cmd.maxLength && filter.length > cmd.maxLength) {
+                console.log(`[搜索] regex 长度不符: ${filter.length} > ${cmd.maxLength}`)
+                continue
+              }
+
+              // 检查搜索输入是否匹配 regex
+              let regexMatches = regex.test(filter)
+              if (regexMatches) {
+                searchMetadata[it.id].matched = true
+                searchMetadata[it.id].cmdType = 'regex'
+                searchMetadata[it.id].matchedCmd = cmd
+                searchMetadata[it.id].matchedValue = filter
+                console.log(`[搜索] ✓ 工作流 "${it.name}" 通过 regex 匹配 "${filter}"`)
+                return true
+              }
+            } catch (e) {
+              console.warn(`[搜索] regex 正则表达式解析失败: ${cmd.match}`, e)
+              console.warn(`[搜索] 错误详情:`, e.message)
+            }
+          }
+
+          // over：匹配任意文本
+          if (cmdType === 'over') {
+            // 检查长度限制
+            if (cmd.minLength && filter.length < cmd.minLength) {
+              console.log(`[搜索] over 长度不符: ${filter.length} < ${cmd.minLength}`)
+              continue
+            }
+            if (cmd.maxLength && filter.length > cmd.maxLength) {
+              console.log(`[搜索] over 长度不符: ${filter.length} > ${cmd.maxLength}`)
+              continue
+            }
+
+            // 检查排除条件
+            if (cmd.exclude) {
+              try {
+                let excludeRegex
+                if (cmd.exclude.startsWith('/')) {
+                  const lastSlashIdx = cmd.exclude.lastIndexOf('/')
+                  const pattern = cmd.exclude.slice(1, lastSlashIdx)
+                  const flags = cmd.exclude.slice(lastSlashIdx + 1)
+                  excludeRegex = new RegExp(pattern, flags)
+                } else {
+                  excludeRegex = new RegExp(cmd.exclude)
+                }
+                // 如果匹配排除条件，跳过
+                if (excludeRegex.test(filter)) {
+                  console.log(`[搜索] over 被排除条件过滤`)
+                  continue
+                }
+              } catch (e) {
+                console.warn(`[搜索] over 排除正则表达式解析失败: ${cmd.exclude}`, e)
+              }
+            }
+
+            // over 类型匹配任意文本
+            searchMetadata[it.id].matched = true
+            searchMetadata[it.id].cmdType = 'over'
+            searchMetadata[it.id].matchedCmd = cmd
+            searchMetadata[it.id].matchedValue = filter
+            console.log(`[搜索] ✓ 工作流 "${it.name}" 通过 over 匹配 "${filter}"`)
+            return true
+          }
+
+          // 其他 cmd 类型（img、files、window）在搜索框场景下暂不支持
+          // 仅在 over 类型时匹配任意文本
+        }
+      }
+    } else {
+      if (it.feature?.enabled) {
+        console.log(`[搜索] 工作流 "${it.name}" feature.enabled=true 但 feature.cmds 为空`)
+      }
+    }
+
+    return false
+  })
+
+  console.log(`[搜索] 搜索词="${filter}", 总工作流数=${allWorkflows.length}, 匹配工作流数=${searchResults.length}`, searchResults)
 
   // 当前显示的内容
   const displayItems = activeTabKey === 'search' ? searchResults : currentItems
@@ -90,12 +223,42 @@ export default function Home({ enterAction: _enterAction }) {
       )
     }
 
+    // 在搜索模式下，检查是否有搜索匹配信息
+    const isSearchMode = activeTabKey === 'search'
+    const matchInfo = isSearchMode ? searchMetadata[item.id] : null
+
+    // 判断是否通过 regex/over 等指令匹配
+    const cmdType = matchInfo?.cmdType
+    const matchedValue = matchInfo?.matchedValue
+
+    // 构造点击时的触发参数
+    const handleCardClick = () => {
+      if (!isSearchMode || !matchInfo?.matched) {
+        // 非搜索模式或未匹配：正常触发
+        handleWorkflowClick(item)
+        return
+      }
+
+      // 搜索模式下的匹配处理
+      if (cmdType === 'regex' || cmdType === 'over') {
+        // regex 或 over 类型匹配：模拟 uTools onPluginEnter 的 payload 结构
+        execute(item, {
+          code: item.feature?.code,
+          type: cmdType,
+          payload: matchedValue
+        })
+      } else {
+        // 功能指令或名称匹配：直接触发
+        handleWorkflowTrigger(item, filter)
+      }
+    }
+
     return (
       <Col key={item.id}>
         <WorkflowCard
           workflow={item}
           loading={loadingMap[item.id]}
-          onClick={() => handleWorkflowClick(item)}
+          onClick={handleCardClick}
           onTrigger={(val) => handleWorkflowTrigger(item, val)}
         />
       </Col>
