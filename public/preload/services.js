@@ -2,6 +2,7 @@ const fsService = require('./services/fs.js')
 const systemService = require('./services/system.js')
 const platformService = require('./services/platform.js')
 const workflowsService = require('./services/workflows/index.js')
+const httpService = require('./services/http.js')
 const apisCore = require('../shared/apis-core.cjs')
 const manualsService = require('./services/manuals/data.js')
 
@@ -21,6 +22,10 @@ window.services = {
   manuals: {
     listManuals: manualsService.listManuals,
     getManualDetail: manualsService.getManualDetail
+  },
+
+  http: {
+    request: (opts, ctx) => httpService.request(opts, ctx)
   },
 
   browser: systemService.browser,

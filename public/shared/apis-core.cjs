@@ -56,7 +56,15 @@ function getApis(context = null) {
     }
   }
 
-  return { platform, fs, clipboard, system, exec }
+  const http = {
+    request: (req) => {
+      const payload = req || {}
+      const ctx = context || null
+      return (typeof window !== 'undefined' && window.services && window.services.http && window.services.http.request ? window.services.http.request(payload, ctx) : null)
+    }
+  }
+
+  return { platform, fs, clipboard, system, exec, http }
 }
 
 async function callApi(name, payload) {
@@ -74,7 +82,9 @@ async function callApi(name, payload) {
     readfileb64: 'fs.readBase64',
     readfilebytes: 'fs.readBytes',
     run: 'exec.run',
-    getplatform: 'platform.getPlatform'
+    getplatform: 'platform.getPlatform',
+    http: 'http.request',
+    fetch: 'http.request'
   }
   let parts = String(name || '').split('.').filter(Boolean)
   if (parts.length === 1) {
