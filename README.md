@@ -49,7 +49,7 @@
 - 欢迎提交 Issue 或 PR
 
 ## 微信交流群
-![微信交流群](./wechat.png)
+<img width="256" height="256" alt="image" src="https://github.com/user-attachments/assets/12840d79-ecaa-4752-9270-46de30bc22d5" />
 
 ## License
 Apache-2.0 license
