@@ -5,9 +5,33 @@ import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
-export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) {
+export default function WorkflowCard({ workflow, loading, onClick, onTrigger, onEdit, onDelete }) {
   const [menuHover, setMenuHover] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  
+  // 右键菜单项
+  const contextMenuItems = [
+    {
+      key: 'edit',
+      label: '编辑工作流',
+      icon: <Icons.EditOutlined />,
+      onClick: ({ domEvent }) => {
+        domEvent?.stopPropagation()
+        onEdit?.(workflow)
+      }
+    },
+    {
+      key: 'delete',
+      label: '删除工作流',
+      icon: <Icons.DeleteOutlined />,
+      danger: true,
+      onClick: ({ domEvent }) => {
+        domEvent?.stopPropagation()
+        onDelete?.(workflow)
+      }
+    }
+  ]
+
   function SvgIcon({ html }) {
     const ref = useRef(null)
     useEffect(() => {
@@ -45,56 +69,58 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger }) 
   }
 
   return (
-    <Card
-      hoverable
-      onClick={onClick}
-      style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
-      styles={{
-        body: {
-          padding: 16,
-          textAlign: 'center',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center'
-        }
-      }}
-    >
-      <div style={{ width: 52, height: 52, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: 0 }}>{getIcon()}</div>
-      <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
-        {workflow.name || '未命名'}
-      </Text>
-      {Array.isArray(workflow.entryTriggers) && workflow.entryTriggers.some(et => (et?.enabled !== false) && et?.label && et?.value) && (
-        <div style={{ position: 'absolute', right: 6, top: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Dropdown
-            menu={{
-              items: (workflow.entryTriggers || [])
-                .filter(et => (et?.enabled !== false) && et?.label && et?.value)
-                .map((et, idx) => ({ key: String(idx), label: et.label, onClick: () => onTrigger?.(et.value) }))
-            }}
-            trigger={['hover']}
-            onOpenChange={(o) => setMenuOpen(o)}
-          >
-            <a
-              onMouseEnter={() => setMenuHover(true)}
-              onMouseLeave={() => setMenuHover(false)}
-              style={{
-                display: 'flex',
-                width: 18,
-                height: 18,
-                borderRadius: '50%',
-                backgroundColor: (menuHover || menuOpen) ? 'var(--color-background-light)' : 'var(--color-background-dark)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 0,
-                textDecoration: 'none'
+    <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+      <Card
+        hoverable
+        onClick={onClick}
+        style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
+        styles={{
+          body: {
+            padding: 16,
+            textAlign: 'center',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }
+        }}
+      >
+        <div style={{ width: 52, height: 52, margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: 0 }}>{getIcon()}</div>
+        <Text ellipsis={{ tooltip: workflow.name }} style={{ fontSize: 13, display: 'block', marginTop: 6 }}>
+          {workflow.name || '未命名'}
+        </Text>
+        {Array.isArray(workflow.entryTriggers) && workflow.entryTriggers.some(et => (et?.enabled !== false) && et?.label && et?.value) && (
+          <div style={{ position: 'absolute', right: 6, top: 6 }} onClick={(e) => e.stopPropagation()}>
+            <Dropdown
+              menu={{
+                items: (workflow.entryTriggers || [])
+                  .filter(et => (et?.enabled !== false) && et?.label && et?.value)
+                  .map((et, idx) => ({ key: String(idx), label: et.label, onClick: () => onTrigger?.(et.value) }))
               }}
+              trigger={['hover']}
+              onOpenChange={(o) => setMenuOpen(o)}
             >
-              <Icons.MoreOutlined style={{ fontSize: 12, color: (menuHover || menuOpen) ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }} />
-            </a>
-          </Dropdown>
-        </div>
-      )}
-    </Card>
+              <a
+                onMouseEnter={() => setMenuHover(true)}
+                onMouseLeave={() => setMenuHover(false)}
+                style={{
+                  display: 'flex',
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: (menuHover || menuOpen) ? 'var(--color-background-light)' : 'var(--color-background-dark)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 0,
+                  textDecoration: 'none'
+                }}
+              >
+                <Icons.MoreOutlined style={{ fontSize: 12, color: (menuHover || menuOpen) ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }} />
+              </a>
+            </Dropdown>
+          </div>
+        )}
+      </Card>
+    </Dropdown>
   )
 }

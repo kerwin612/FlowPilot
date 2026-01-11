@@ -943,6 +943,7 @@ export default function ConfigManager({ config, onClose }) {
         title={choice.mode === 'export' ? '导出' : '导入'}
         onCancel={() => { setChoiceVisible(false); setChoice({ mode: null, entityId: null, tabIndex: null }) }}
         footer={null}
+        width={800}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Input.TextArea rows={20} value={configText} onChange={(e) => setConfigText(e.target.value)} placeholder={choice.mode === 'export' ? '请输入要导出的配置' : '请输入要导入的配置'} />

@@ -399,6 +399,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
                 modal.info({
                   title: '执行器配置指南',
+                  okText: '知道了',
                   content: (
                     <div>
                       {intro}
@@ -515,6 +516,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
                 modal.info({
                   title: '动作器配置指南',
+                  okText: '知道了',
                   content: (
                     <div>
                       {intro}

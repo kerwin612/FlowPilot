@@ -68,7 +68,7 @@ export default function CmdsEditor({ value = [], onChange }) {
         size="small"
         title={typeLabel}
         extra={
-          <Popconfirm title="确定删除此匹配规则吗？" onConfirm={() => handleRemoveObjectCmd(index)}>
+          <Popconfirm title="确定删除此匹配规则吗？" onConfirm={() => handleRemoveObjectCmd(index)} okText="确定" cancelText="取消">
             <Button type="text" danger size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
         }

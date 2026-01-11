@@ -379,7 +379,7 @@ export default function GlobalVarEditor({ globalVars = [], allTags = [], onChang
         onCancel={handleCancel}
         okText="保存"
         cancelText="取消"
-        width={600}
+        width={800}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item

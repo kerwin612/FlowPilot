@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer } from 'antd'
+import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer, App } from 'antd'
 import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
-import { systemService } from '../../services'
+import { systemService, configService } from '../../services'
 import WorkflowCard from './components/WorkflowCard'
 import FolderCard from './components/FolderCard'
 import ConfigManager from './components/ConfigManager'
 import AiChatbot from './components/AiChatbot'
+import WorkflowEditor from './components/WorkflowEditor'
+import { ITEM_TYPE_FOLDER, ITEM_TYPE_WORKFLOW } from '../../shared/constants'
 
 export default function Home({ enterAction: _enterAction }) {
+  const { modal, message } = App.useApp()
   const { config, tabs, envVars, globalVars, reload } = useConfig()
   const { currentTabIndex, currentItems, switchTab } = useNavigation(tabs)
   const { execute, loadingMap } = useWorkflowExecution()
@@ -20,6 +23,7 @@ export default function Home({ enterAction: _enterAction }) {
   const [openFolder, setOpenFolder] = useState(null)
   const [activeTabKey, setActiveTabKey] = useState(String(currentTabIndex))
   const [showChatbot, setShowChatbot] = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
 
   // no-op
 
@@ -56,6 +60,114 @@ export default function Home({ enterAction: _enterAction }) {
       }
     }
   }, [tabs, filter, activeTabKey, switchTab])
+
+  const findItemLocation = (itemId, searchTabs = tabs) => {
+    if (!searchTabs) return null
+    for (let i = 0; i < searchTabs.length; i++) {
+      const tab = searchTabs[i]
+      const items = tab.items || []
+      
+      // Check root items
+      const rootItem = items.find(it => it.id === itemId)
+      if (rootItem) return { tabIndex: i, folderId: null, item: rootItem }
+
+      // Check inside folders
+      for (const item of items) {
+        if (item.type === ITEM_TYPE_FOLDER && item.items) {
+          const subItem = item.items.find(sub => sub.id === itemId)
+          if (subItem) return { tabIndex: i, folderId: item.id, item: subItem }
+        }
+      }
+    }
+    return null
+  }
+
+  // Update openFolder when tabs change to keep it in sync
+  useEffect(() => {
+    if (openFolder && tabs) {
+      for (const tab of tabs) {
+        const found = (tab.items || []).find(it => it.id === openFolder.id)
+        if (found) {
+          setOpenFolder(found)
+          return
+        }
+      }
+      setOpenFolder(null)
+    }
+  }, [tabs])
+
+  const handleEditItem = (item) => {
+    const loc = findItemLocation(item.id)
+    if (loc) {
+        setEditingItem({ ...item, _location: loc })
+    } else {
+        message.error('未找到该项目，可能已被删除')
+    }
+  }
+
+  const handleDeleteItem = (item) => {
+    modal.confirm({
+      title: `确定删除 "${item.name}"?`,
+      content: '删除后无法恢复',
+      okType: 'danger',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => {
+        try {
+          // 使用 configService.getTabs() 获取最新数据，避免闭包中的 tabs 过期
+          const currentTabs = configService.getTabs()
+          const loc = findItemLocation(item.id, currentTabs)
+
+          if (!loc) {
+            message.error('删除失败：未找到该项目，可能已被删除')
+            return
+          }
+          
+          if (loc.folderId) {
+               // Delete from folder
+               const tab = currentTabs[loc.tabIndex]
+               const folder = tab.items.find(it => it.id === loc.folderId)
+               if (folder) {
+                   folder.items = folder.items.filter(it => it.id !== item.id)
+                   configService.updateItem(loc.tabIndex, loc.folderId, folder)
+               }
+          } else {
+              // Delete from root
+              configService.deleteItem(loc.tabIndex, item.id)
+          }
+          message.success('已删除')
+          reload()
+        } catch (error) {
+          console.error('[Delete] Error occurred:', error)
+          message.error('删除出错: ' + error.message)
+        }
+      }
+    })
+  }
+
+  const handleSaveItem = (values) => {
+     if (!editingItem || !editingItem._location) return
+     
+     const { tabIndex, folderId } = editingItem._location
+     const newItem = { ...editingItem, ...values }
+     delete newItem._location
+     
+     if (folderId) {
+         const tab = tabs[tabIndex]
+         const folder = tab.items.find(it => it.id === folderId)
+         if (folder) {
+             const idx = folder.items.findIndex(it => it.id === editingItem.id)
+             if (idx > -1) {
+                 folder.items[idx] = { ...folder.items[idx], ...values }
+                 configService.updateItem(tabIndex, folderId, folder)
+             }
+         }
+     } else {
+         configService.updateItem(tabIndex, editingItem.id, newItem)
+     }
+     setEditingItem(null)
+     reload()
+  }
 
   // 收集所有工作流（非文件夹，仅 type === 'workflow'）
   const allWorkflows = (tabs || []).flatMap((tab) =>
@@ -218,7 +330,12 @@ export default function Home({ enterAction: _enterAction }) {
     if (item.type === 'folder') {
       return (
         <Col key={item.id}>
-          <FolderCard folder={item} onClick={() => setOpenFolder(item)} />
+          <FolderCard
+            folder={item}
+            onClick={() => setOpenFolder(item)}
+            onEdit={() => handleEditItem(item)}
+            onDelete={() => handleDeleteItem(item)}
+          />
         </Col>
       )
     }
@@ -260,6 +377,8 @@ export default function Home({ enterAction: _enterAction }) {
           loading={loadingMap[item.id]}
           onClick={handleCardClick}
           onTrigger={(val) => handleWorkflowTrigger(item, val)}
+          onEdit={() => handleEditItem(item)}
+          onDelete={() => handleDeleteItem(item)}
         />
       </Col>
     )
@@ -369,6 +488,8 @@ export default function Home({ enterAction: _enterAction }) {
                     loading={loadingMap[item.id]}
                     onClick={() => handleWorkflowClick(item)}
                     onTrigger={(val) => handleWorkflowTrigger(item, val)}
+                    onEdit={() => handleEditItem(item)}
+                    onDelete={() => handleDeleteItem(item)}
                   />
                 </Col>
               ))}
@@ -392,6 +513,16 @@ export default function Home({ enterAction: _enterAction }) {
 
       {showChatbot && (
         <AiChatbot open={showChatbot} onClose={() => setShowChatbot(false)} />
+      )}
+
+      {editingItem && (
+        <WorkflowEditor
+          open={true}
+          type={editingItem.type}
+          initialData={editingItem}
+          onSave={handleSaveItem}
+          onCancel={() => setEditingItem(null)}
+        />
       )}
     </Layout>
   )
