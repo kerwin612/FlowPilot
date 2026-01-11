@@ -123,11 +123,33 @@ export default function IconPicker({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 16 }}>
               {commonIcons.map((iconKey) => {
                 const IconComponent = Icons[iconKey]
+                const isSelected = selectedIcon === iconKey
                 return IconComponent ? (
                   <div
                     key={iconKey}
                     onClick={() => onIconChange(iconKey)}
-                    style={{ padding: 8, textAlign: 'center', cursor: 'pointer', border: selectedIcon === iconKey ? '2px solid var(--color-primary)' : '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: selectedIcon === iconKey ? 'var(--color-primary-light)' : 'transparent' }}
+                    style={{
+                      padding: 8,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isSelected ? 'var(--color-primary-bg)' : 'transparent',
+                      color: isSelected ? 'var(--color-primary)' : 'inherit',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--color-primary-hover)'
+                        e.currentTarget.style.color = 'var(--color-primary)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--color-border)'
+                        e.currentTarget.style.color = 'inherit'
+                      }
+                    }}
                   >
                     <IconComponent style={{ fontSize: 20 }} />
                   </div>

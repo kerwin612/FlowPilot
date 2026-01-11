@@ -1,4 +1,4 @@
-import { Input, Switch, Button, Space, Select, InputNumber, Collapse } from 'antd'
+import { Input, Switch, Button, Space, Select, InputNumber, Collapse, ConfigProvider, theme } from 'antd'
 import { useState, useEffect, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import ParamFormModal from './ParamFormModal'
@@ -58,7 +58,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
       <div
         style={{
           padding: '12px',
-          background: 'var(--color-bg-container)',
+          background: 'var(--color-background-light)',
           borderRadius: '6px',
           border: '1px solid var(--color-border)'
         }}
@@ -435,14 +435,29 @@ export const ParamBuilderExecutor = {
           container.remove()
         })
       }
+      // Check for dark mode
+      let isDark = false
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        isDark = true
+      }
+      if (window.utools && window.utools.isDarkColors) {
+        isDark = window.utools.isDarkColors()
+      }
+
       root.render(
-        <ParamFormModal
-          shortcut={{ name: '参数收集', mode: 'composed', executors: [] }}
-          defaultParams={initial}
-          params={config.params}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
+        <ConfigProvider
+          theme={{
+            algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm
+          }}
+        >
+          <ParamFormModal
+            shortcut={{ name: '参数收集', mode: 'composed', executors: [] }}
+            defaultParams={initial}
+            params={config.params}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
+        </ConfigProvider>
       )
     })
 

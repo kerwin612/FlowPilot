@@ -22,10 +22,10 @@ import { CSS } from '@dnd-kit/utilities'
 import { actionRegistry } from '../../workflow/actions/registry'
 
 const helpBoxStyle = {
-  border: '1px solid #e6e6e6',
+  border: '1px solid var(--color-border)',
   borderRadius: 6,
   padding: '10px 12px',
-  background: '#fafafa'
+  background: 'var(--color-background-light)'
 }
 
 /**
@@ -92,8 +92,8 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
           style={{
             marginBottom: 12,
             padding: '10px 12px',
-            background: '#fafafa',
-            border: '1px dashed #d9d9d9',
+            background: 'var(--color-background-light)',
+            border: '1px dashed var(--color-border)',
             borderRadius: 8
           }}
         >
@@ -146,13 +146,13 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
           return (
             <div style={{ marginBottom: 12, ...helpBoxStyle }}>
               {c.overview && (
-                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                   <Typography.Text strong>概述：</Typography.Text> {c.overview}
                 </div>
               )}
 
               {c.fields?.length > 0 && (
-                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                   <Typography.Text strong>字段说明：</Typography.Text>
                   <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                     {c.fields.map((f, idx) => (
@@ -165,7 +165,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
               )}
 
               {c.examples?.length > 0 && (
-                <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                   <Typography.Text strong>配置案例：</Typography.Text>
                   <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                     {c.examples.map((ex, idx) => (
@@ -178,7 +178,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
               )}
 
               {c.tips?.length > 0 && (
-                <div style={{ fontSize: 12, color: '#595959', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                   <Typography.Text strong>使用技巧：</Typography.Text>
                   <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                     {c.tips.map((t, i) => (
@@ -189,7 +189,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
               )}
 
               {c.faqs?.length > 0 && (
-                <div style={{ fontSize: 12, color: '#595959', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                   <Typography.Text strong>常见问题：</Typography.Text>
                   <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                     {c.faqs.map((f, i) => (
@@ -202,7 +202,7 @@ const SortableActionItem = memo(({ act, index, onToggle, onRemove, onConfigChang
               )}
 
               {c.warnings?.length > 0 && (
-                <div style={{ fontSize: 12, color: '#d46b08' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-warning)' }}>
                   <Typography.Text strong>注意事项：</Typography.Text>
                   <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                     {c.warnings.map((w, i) => (

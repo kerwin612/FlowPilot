@@ -1,36 +1,48 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
+import { useEffect } from 'react'
 import { App as AntApp } from 'antd'
 
-let mounted = false
-let modalInstance = null
-let waiters = []
+// 使用 window 对象存储实例，防止 HMR 导致实例丢失
+const INSTANCE_KEY = '__FLOWPILOT_MODAL_INSTANCE__'
+const WAITERS_KEY = '__FLOWPILOT_MODAL_WAITERS__'
 
-function mountHost() {
-  if (mounted) return
-  mounted = true
-  const container = document.createElement('div')
-  container.setAttribute('data-modal-host', 'true')
-  document.body.appendChild(container)
+if (!window[WAITERS_KEY]) {
+  window[WAITERS_KEY] = []
+}
 
-  function Host() {
-    const { modal } = AntApp.useApp()
-    React.useEffect(() => {
-      modalInstance = modal
-      if (waiters.length) {
-        waiters.forEach((r) => r(modal))
-        waiters = []
-      }
-    }, [modal])
-    return null
-  }
+export function GlobalModalHost() {
+  const { modal } = AntApp.useApp()
 
-  const root = createRoot(container)
-  root.render(React.createElement(AntApp, null, React.createElement(Host, null)))
+  useEffect(() => {
+    console.log('[GlobalModalHost] mounted, modal instance captured')
+    window[INSTANCE_KEY] = modal
+    
+    // Resolve any pending waiters
+    const waiters = window[WAITERS_KEY]
+    if (waiters.length > 0) {
+      console.log(`[GlobalModalHost] resolving ${waiters.length} waiters`)
+      waiters.forEach((resolve) => resolve(modal))
+      window[WAITERS_KEY] = []
+    }
+    
+    return () => {
+        console.log('[GlobalModalHost] unmounted')
+    }
+  }, [modal])
+
+  // 每次渲染都更新（应对可能的闭包陈旧问题）
+  window[INSTANCE_KEY] = modal
+
+  return null
 }
 
 export function ensureModal() {
-  if (!mounted) mountHost()
-  if (modalInstance) return Promise.resolve(modalInstance)
-  return new Promise((resolve) => waiters.push(resolve))
+  const instance = window[INSTANCE_KEY]
+  if (instance) {
+    return Promise.resolve(instance)
+  }
+  
+  console.log('[ensureModal] waiting for modal instance...')
+  return new Promise((resolve) => {
+    window[WAITERS_KEY].push(resolve)
+  })
 }

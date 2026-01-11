@@ -15,3 +15,7 @@
 - 解析模板后创建 BrowserWindow（预载 `page-app/index.cjs`），注入 `{ trigger, context.slim }`，再按模式加载内容。
 - 可选打开 DevTools；空内容会按默认模板填充。
 
+## 暗黑模式适配
+- **窗口背景**：窗口背景色会自动根据当前系统/应用主题设置为深色或浅色，避免加载时的白屏闪烁。
+- **样式感知**：在 `page-app:init` 初始化事件的 payload 中包含 `theme` 字段（值为 `"dark"` 或 `"light"`），页面脚本可以读取该字段来动态切换 CSS 类或样式。
+

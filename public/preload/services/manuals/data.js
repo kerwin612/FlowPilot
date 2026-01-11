@@ -145,7 +145,10 @@ const manuals = [
         { name: 'allowPopups/resizable/frameless/devTools', label: '窗口行为', desc: '弹窗/缩放/无边框/调试等。' }
       ],
       examples: [{ title: '默认模板', code: '<div id="app"></div>' }],
-      tips: [{ text: '行为：无结构化返回，创建窗口并加载内容。' }]
+      tips: [
+        { text: '行为：无结构化返回，创建窗口并加载内容。' },
+        { text: '暗黑模式适配：窗口背景色会自动跟随系统主题；初始化事件 page-app:init 的 payload 中包含 theme 字段（"dark"/"light"），页面脚本可据此切换样式' }
+      ]
     }
   },
   {
@@ -196,7 +199,10 @@ const manuals = [
         { name: 'customStyles', label: '自定义样式', desc: '可选 CSS 字符串。' }
       ],
       examples: [{ title: 'Markdown', code: '# Hello\n查看 {{executors[0].result.value.url}}' }],
-      tips: [{ text: '行为：无结构化返回，弹窗 600px 宽，可遮罩关闭。' }]
+      tips: [
+        { text: '行为：无结构化返回，弹窗 600px 宽，可遮罩关闭。' },
+        { text: '暗黑模式适配：支持使用 CSS 变量（如 var(--color-text-primary)）；系统会自动注入基础暗黑样式，自定义样式可通过 @media (prefers-color-scheme: dark) 覆盖' }
+      ]
     }
   },
   {

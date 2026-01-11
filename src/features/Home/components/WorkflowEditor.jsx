@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col, Typography } from 'antd'
+import { Modal, Form, Input, Collapse, Switch, Space, List, Button, Row, Col, Tag, Typography } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { arrayMove } from '@dnd-kit/sortable'
 import IconPicker from './WorkflowEditor/IconPicker'
@@ -361,7 +361,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                       {m.content.warnings?.length > 0 && (
                         <div style={{ marginBottom: 8 }}>
                           <Typography.Text strong>注意事项：</Typography.Text>
-                          <ul style={{ margin: 0, paddingLeft: 18, color: '#d46b08' }}>
+                          <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--color-warning)' }}>
                             {m.content.warnings.map((w, i) => <li key={i}>{w.text}</li>)}
                           </ul>
                         </div>
@@ -540,8 +540,8 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
             <div
               style={{
-                background: '#fafafa',
-                border: '1px solid #d9d9d9',
+                background: 'var(--color-background-light)',
+                border: '1px solid var(--color-border)',
                 borderRadius: '8px',
                 padding: '16px',
                 marginTop: '16px'
@@ -559,11 +559,11 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                   ),
                   children: (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <div style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '10px 12px', background: '#fafafa' }}>
-                        <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                      <div style={{ border: '1px solid var(--color-border-light)', borderRadius: 6, padding: '10px 12px', background: 'var(--color-background-light)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                           <Typography.Text strong>概述：</Typography.Text> 为同一工作流配置多个入口（菜单项），可按不同指令/匹配方式触发同一流程。
                         </div>
-                        <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                           <Typography.Text strong>字段提示：</Typography.Text>
                           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                             <li>入口名称：显示在入口菜单中的文案。</li>
@@ -571,7 +571,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                             <li>启用：可按需临时关闭某入口。</li>
                           </ul>
                         </div>
-                        <div style={{ fontSize: 12, color: '#595959' }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                           <Typography.Text strong>示例：</Typography.Text> 如“打开项目 A”“打开项目 B”，匹配不同目录或参数。
                         </div>
                       </div>
@@ -646,8 +646,8 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
             <div
               style={{
-                background: '#fafafa',
-                border: '1px solid #d9d9d9',
+                background: 'var(--color-background-light)',
+                border: '1px solid var(--color-border)',
                 borderRadius: '8px',
                 padding: '16px',
                 marginTop: '16px'
@@ -663,29 +663,17 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                       <span style={{ fontWeight: 500 }}>
                         🚀 快捷触发配置（动态指令）
                         {featureEnabled && (
-                          <span
-                            style={{
-                              marginLeft: 8,
-                              fontSize: '12px',
-                              color: '#52c41a',
-                              background: '#f6ffed',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              border: '1px solid #b7eb8f'
-                            }}
-                          >
-                            已启用
-                          </span>
+                          <Tag color="success" style={{ marginLeft: 8 }}>已启用</Tag>
                         )}
                       </span>
                     ),
                     children: (
                       <Space direction="vertical" style={{ width: '100%' }}>
-                        <div style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '10px 12px', background: '#fafafa' }}>
-                          <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                        <div style={{ border: '1px solid var(--color-border-light)', borderRadius: 6, padding: '10px 12px', background: 'var(--color-background-light)' }}>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                             <Typography.Text strong>概述：</Typography.Text> 将工作流暴露为 uTools 动态指令，可在搜索框/匹配规则中触发。
                           </div>
-                          <div style={{ fontSize: 12, color: '#262626', marginBottom: 6 }}>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                             <Typography.Text strong>字段提示：</Typography.Text>
                             <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                               <li>启用动态指令：开启后才会注册。</li>
@@ -693,7 +681,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                               <li>触发指令：支持功能指令、文件/正则匹配、超级面板等。</li>
                             </ul>
                           </div>
-                          <div style={{ fontSize: 12, color: '#595959' }}>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
                             <Typography.Text strong>示例：</Typography.Text> 如“复制时间戳”“打开项目目录”，分别配置不同触发词或匹配规则。
                           </div>
                         </div>

@@ -33,28 +33,46 @@ textarea {
   margin: 0;
 }
 
-@media (prefers-color-scheme: light) {
-  body {
-    background-color: var(--color-background-dark);
-  }
-  ::-webkit-scrollbar-track-piece {
-    background-color: var(--color-background-light);
-  }
-  ::-webkit-scrollbar-thumb {
-    border-color: var(--color-background-light);
-  }
+/* === Light Mode (Default & Explicit) === */
+body {
+  background-color: var(--color-background-dark);
+}
+::-webkit-scrollbar-track-piece {
+  background-color: var(--color-background-light);
+}
+::-webkit-scrollbar-thumb {
+  border-color: var(--color-background-light);
 }
 
+/* === Dark Mode (Media Query) === */
 @media (prefers-color-scheme: dark) {
-  &::-webkit-scrollbar-track-piece {
-    background-color: var(--color-background-night);
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--color-gray-600);
-    border-color: var(--color-background-night);
-  }
-  body {
+  /* Only apply if NOT explicitly set to light */
+  body:not([data-theme='light']) {
     background-color: var(--color-background-night);
     color: var(--color-text-inverse);
   }
+  
+  :not([data-theme='light'])::-webkit-scrollbar-track-piece {
+    background-color: var(--color-background-night);
+  }
+  
+  :not([data-theme='light'])::-webkit-scrollbar-thumb {
+    background-color: var(--color-gray-600);
+    border-color: var(--color-background-night);
+  }
+}
+
+/* === Dark Mode (Explicit Data Attribute) === */
+[data-theme='dark'] body {
+  background-color: var(--color-background-night);
+  color: var(--color-text-inverse);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-track-piece {
+  background-color: var(--color-background-night);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-600);
+  border-color: var(--color-background-night);
 }

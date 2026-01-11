@@ -119,7 +119,30 @@ export const ShowModalAction = {
     const modal = await ensureModal()
 
     // 构建完整的 HTML，包含样式和内容
+    // 注入暗黑模式适配样式
+    const defaultStyles = `
+      .modal-content-wrapper {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--color-text-primary, #000000e0);
+      }
+      .modal-content-wrapper img {
+        max-width: 100%;
+      }
+      /* Dark mode adaptation */
+      @media (prefers-color-scheme: dark) {
+        .modal-content-wrapper {
+          color: var(--color-text-primary, #ffffffd9);
+        }
+      }
+      /* Explicit dark theme support via data-theme */
+      :root[data-theme='dark'] .modal-content-wrapper {
+        color: var(--color-text-primary, #ffffffd9);
+      }
+    `
+
     const fullHtml = `
+      <style>${defaultStyles}</style>
       ${customStyles ? `<style>${customStyles}</style>` : ''}
       <div class="modal-content-wrapper">
         ${htmlContent}

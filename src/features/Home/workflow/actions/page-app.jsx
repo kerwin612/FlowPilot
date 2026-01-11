@@ -127,8 +127,19 @@ async function executePageApp(trigger, context, config) {
   const frameless = toBool(resolveTemplate(String(config.frameless ?? false), context))
   const allowPopups = toBool(resolveTemplate(String(config.allowPopups ?? true), context))
 
-  const slimContext = {
-    trigger,
+    // 检测当前是否为暗黑模式
+    let isDark = false
+    try {
+      if (typeof window !== 'undefined') {
+         isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+         if (window.utools && window.utools.isDarkColors) {
+           isDark = window.utools.isDarkColors()
+         }
+      }
+    } catch (e) {}
+
+    const slimContext = {
+      trigger,
     executors: Array.isArray(context?.executors)
       ? context.executors.map((e) => ({ key: e.key, enabled: !!e.enabled, result: e.result }))
       : [],
@@ -136,19 +147,19 @@ async function executePageApp(trigger, context, config) {
     vars: context?.vars || []
   }
 
-  const options = {
-    show: false,
-    title,
-    width,
-    height,
-    resizable,
-    frame: frameless ? false : true,
-    backgroundColor: '#ffffff',
-    webPreferences: {
-      preload: 'page-app/index.cjs',
-      nativeWindowOpen: allowPopups
+    const options = {
+      show: false,
+      title,
+      width,
+      height,
+      resizable,
+      frame: frameless ? false : true,
+      backgroundColor: isDark ? '#1f1f1f' : '#ffffff',
+      webPreferences: {
+        preload: 'page-app/index.cjs',
+        nativeWindowOpen: allowPopups
+      }
     }
-  }
   const win = utools.createBrowserWindow('page-app/index.html', options, () => {
     // 如果开启单例模式，保存窗口实例
     if (singleton && workflowId) {
@@ -171,7 +182,19 @@ async function executePageApp(trigger, context, config) {
     try { if (alwaysOnTop) win.setAlwaysOnTop(true) } catch (e) {
       console.error("[page-app preload] set always on top error:", e)
     }
-    try { win.webContents.send('page-app:init', { title, mode, html, css, js, fullHtml, htmlFilePath, payload: { trigger, context: slimContext } }) } catch (e) {
+    try { 
+      win.webContents.send('page-app:init', { 
+        title, 
+        mode, 
+        html, 
+        css, 
+        js, 
+        fullHtml, 
+        htmlFilePath, 
+        theme: isDark ? 'dark' : 'light',
+        payload: { trigger, context: slimContext } 
+      }) 
+    } catch (e) {
       console.error("[page-app preload] send init error:", e)
     }
     try { win.show() } catch (e) {

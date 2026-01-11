@@ -36,8 +36,8 @@
   --color-background-dark: #f5f5f5;
   --color-background-overlay: rgba(0, 0, 0, 0.35);
   /* 夜间模式（深色）扩展 */
-  --color-background-night: #303133;
-  --color-background-night-2: #424242;
+  --color-background-night: #1f1f1f;
+  --color-background-night-2: #2b2b2b;
   --color-gray-600: #666666;
 
   --color-icon-secondary: #999999;
@@ -71,4 +71,43 @@
   /* === 过渡 === */
   --transition-base: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
   --transition-fast: all 0.2s ease;
+}
+
+/* 
+ * 混合支持:
+ * 1. 媒体查询 (系统/默认)
+ * 2. data-theme 属性 (JS控制/uTools适配)
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-background: var(--color-background-night);
+    --color-background-light: var(--color-background-night-2);
+    --color-background-dark: #1f1f1f;
+    
+    --color-text-primary: rgba(255, 255, 255, 0.85);
+    --color-text-secondary: rgba(255, 255, 255, 0.45);
+    --color-text-disabled: rgba(255, 255, 255, 0.25);
+    
+    --color-border: #424242;
+    --color-border-light: #303030;
+    --color-border-dark: #666666;
+    
+    --color-icon-secondary: rgba(255, 255, 255, 0.45);
+  }
+}
+
+[data-theme='dark'] {
+  --color-background: var(--color-background-night);
+  --color-background-light: var(--color-background-night-2);
+  --color-background-dark: #1f1f1f;
+  
+  --color-text-primary: rgba(255, 255, 255, 0.85);
+  --color-text-secondary: rgba(255, 255, 255, 0.45);
+  --color-text-disabled: rgba(255, 255, 255, 0.25);
+  
+  --color-border: #424242;
+  --color-border-light: #303030;
+  --color-border-dark: #666666;
+  
+  --color-icon-secondary: rgba(255, 255, 255, 0.45);
 }
