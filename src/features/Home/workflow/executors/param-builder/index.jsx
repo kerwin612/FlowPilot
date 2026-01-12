@@ -2,7 +2,7 @@ import { Input, Switch, Button, Space, Select, InputNumber, Collapse, ConfigProv
 import { useState, useEffect, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import ParamFormModal from './ParamFormModal'
-import { PlusOutlined, MinusCircleOutlined, SettingOutlined, SaveOutlined } from '@ant-design/icons'
+import { PlusOutlined, MinusCircleOutlined, SettingOutlined } from '@ant-design/icons'
 import { WorkflowCancelError } from '../../engine/errors'
 import { resolveTemplate } from '../../engine/compile'
 
@@ -105,17 +105,6 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
             extra={
               <Space>
                 <Button
-                  type="text"
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    commit()
-                  }}
-                  icon={<SaveOutlined />}
-                  title="保存此参数"
-                  style={{ color: 'var(--color-primary-hover)' }}
-                />
-                <Button
                   danger
                   type="text"
                   size="small"
@@ -124,7 +113,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     e.stopPropagation()
                     const cp = localParams.filter((_, idx) => idx !== i)
                     update(cp)
-                    commit(cp)
+                    onChange({ ...(value || {}), params: cp })
                     setExpanded((prev) => {
                       const next = [...prev]
                       next.splice(i, 1)
@@ -145,6 +134,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     cp[i] = { ...cp[i], name: e.target.value }
                     update(cp)
                   }}
+                  onBlur={commit}
                   style={{ width: 150 }}
                 />
                 <Input
@@ -155,6 +145,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     cp[i] = { ...cp[i], label: e.target.value }
                     update(cp)
                   }}
+                  onBlur={commit}
                   style={{ width: 150 }}
                 />
                 <Select
@@ -164,6 +155,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     const cp = [...localParams]
                     cp[i] = { ...cp[i], type: val }
                     update(cp)
+                    onChange({ ...(value || {}), params: cp })
                   }}
                   style={{ width: 130 }}
                   options={typeOptions}
@@ -174,6 +166,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                     const cp = [...localParams]
                     cp[i] = { ...cp[i], required: val }
                     update(cp)
+                    onChange({ ...(value || {}), params: cp })
                   }}
                   checkedChildren="必填"
                   unCheckedChildren="可选"
@@ -188,6 +181,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                   cp[i] = { ...cp[i], placeholder: e.target.value }
                   update(cp)
                 }}
+                onBlur={commit}
               />
 
               <Input
@@ -198,6 +192,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                   cp[i] = { ...cp[i], description: e.target.value }
                   update(cp)
                 }}
+                onBlur={commit}
               />
 
               <Input
@@ -208,6 +203,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                   cp[i] = { ...cp[i], visibleWhen: e.target.value }
                   update(cp)
                 }}
+                onBlur={commit}
               />
 
               {p.type !== 'switch' && p.type !== 'boolean' && (
@@ -220,6 +216,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       cp[i] = { ...cp[i], default: e.target.value }
                       update(cp)
                     }}
+                    onBlur={commit}
                   />
                   <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
                     💡 支持模板变量：
@@ -239,6 +236,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       cp[i] = { ...cp[i], min: val }
                       update(cp)
                     }}
+                    onBlur={commit}
                     style={{ width: 100 }}
                   />
                   <span>-</span>
@@ -250,6 +248,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       cp[i] = { ...cp[i], max: val }
                       update(cp)
                     }}
+                    onBlur={commit}
                     style={{ width: 100 }}
                   />
                   <span>步长:</span>
@@ -261,6 +260,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       cp[i] = { ...cp[i], step: val }
                       update(cp)
                     }}
+                    onBlur={commit}
                     style={{ width: 80 }}
                   />
                 </Space>
@@ -301,6 +301,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       cp[i] = { ...cp[i], options: opts }
                       update(cp)
                     }}
+                    onBlur={commit}
                     rows={4}
                     style={{ fontFamily: 'monospace', fontSize: 12 }}
                   />
@@ -316,6 +317,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       const cp = [...localParams]
                       cp[i] = { ...cp[i], valueMultiple: val }
                       update(cp)
+                      onChange({ ...(value || {}), params: cp })
                     }}
                   />
                 </Space>
@@ -331,6 +333,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
                       const cp = [...localParams]
                       cp[i] = { ...cp[i], valueKinds: vals }
                       update(cp)
+                      onChange({ ...(value || {}), params: cp })
                     }}
                     style={{ minWidth: 200 }}
                     options={[{ value: 'text', label: '文本' }, { value: 'file', label: '文件' }]}
@@ -358,6 +361,7 @@ const ParamBuilderConfig = ({ value = {}, onChange }) => {
             }
           ]
           update(next)
+          onChange({ ...(value || {}), params: next })
           setExpanded((prev) => {
             const arr = prev.slice(0, next.length - 1)
             arr.push(true) // 新增的参数默认展开
