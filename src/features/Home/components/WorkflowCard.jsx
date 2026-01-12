@@ -5,7 +5,7 @@ import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
-export default function WorkflowCard({ workflow, loading, onClick, onTrigger, onEdit, onDelete }) {
+export default function WorkflowCard({ workflow, loading, onClick, onTrigger, onEdit, onDelete, onExport }) {
   const [menuHover, setMenuHover] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   
@@ -18,6 +18,15 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger, on
       onClick: ({ domEvent }) => {
         domEvent?.stopPropagation()
         onEdit?.(workflow)
+      }
+    },
+    {
+      key: 'export',
+      label: '导出工作流',
+      icon: <Icons.ExportOutlined />,
+      onClick: ({ domEvent }) => {
+        domEvent?.stopPropagation()
+        onExport?.(workflow)
       }
     },
     {
@@ -69,11 +78,12 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger, on
   }
 
   return (
-    <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
-      <Card
-        hoverable
-        onClick={onClick}
-        style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
+    <div onContextMenu={(e) => e.stopPropagation()} style={{ display: 'inline-block' }}>
+      <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+        <Card
+          hoverable
+          onClick={onClick}
+          style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
         styles={{
           body: {
             padding: 16,
@@ -90,7 +100,7 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger, on
           {workflow.name || '未命名'}
         </Text>
         {Array.isArray(workflow.entryTriggers) && workflow.entryTriggers.some(et => (et?.enabled !== false) && et?.label && et?.value) && (
-          <div style={{ position: 'absolute', right: 6, top: 6 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ position: 'absolute', right: 6, top: 6 }} onClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.stopPropagation()}>
             <Dropdown
               menu={{
                 items: (workflow.entryTriggers || [])
@@ -121,6 +131,7 @@ export default function WorkflowCard({ workflow, loading, onClick, onTrigger, on
           </div>
         )}
       </Card>
-    </Dropdown>
+      </Dropdown>
+    </div>
   )
 }

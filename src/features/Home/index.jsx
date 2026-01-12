@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer, App } from 'antd'
-import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined } from '@ant-design/icons'
+import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer, App, Dropdown } from 'antd'
+import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined, ImportOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
@@ -10,6 +10,7 @@ import FolderCard from './components/FolderCard'
 import ConfigManager from './components/ConfigManager'
 import AiChatbot from './components/AiChatbot'
 import WorkflowEditor from './components/WorkflowEditor'
+import TransferModal from './components/TransferModal'
 import { ITEM_TYPE_FOLDER, ITEM_TYPE_WORKFLOW } from '../../shared/constants'
 
 export default function Home({ enterAction: _enterAction }) {
@@ -24,6 +25,15 @@ export default function Home({ enterAction: _enterAction }) {
   const [activeTabKey, setActiveTabKey] = useState(String(currentTabIndex))
   const [showChatbot, setShowChatbot] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  
+  const [transferModal, setTransferModal] = useState({
+    open: false,
+    mode: 'export',
+    title: '',
+    content: '',
+    defaultFileName: '',
+    onImportConfirm: null
+  })
 
   // no-op
 
@@ -167,6 +177,76 @@ export default function Home({ enterAction: _enterAction }) {
      }
      setEditingItem(null)
      reload()
+  }
+
+  const handleExportWorkflow = async (workflow) => {
+    try {
+      const json = configService.exportWorkflow(workflow.id)
+      setTransferModal({
+        open: true,
+        mode: 'export',
+        title: `导出工作流 - ${workflow.name}`,
+        content: json,
+        defaultFileName: `${workflow.name}.json`,
+        onImportConfirm: null
+      })
+    } catch {
+      message.error('导出准备失败')
+    }
+  }
+
+  const handleExportFolder = async (folder) => {
+    try {
+      const json = configService.exportFolder(folder.id)
+      setTransferModal({
+        open: true,
+        mode: 'export',
+        title: `导出文件夹 - ${folder.name}`,
+        content: json,
+        defaultFileName: `${folder.name}.json`,
+        onImportConfirm: null
+      })
+    } catch {
+      message.error('导出准备失败')
+    }
+  }
+
+  const handleImportToTab = async () => {
+    setTransferModal({
+      open: true,
+      mode: 'import',
+      title: '导入配置到当前标签页',
+      content: '',
+      defaultFileName: '',
+      onImportConfirm: async (text) => {
+        const ok = await configService.importAutoFromText(text, currentTabIndex)
+        if (ok) {
+          message.success('导入成功')
+          reload()
+          return true
+        }
+        return false
+      }
+    })
+  }
+
+  const handleImportToFolder = async (folder) => {
+    setTransferModal({
+      open: true,
+      mode: 'import',
+      title: `导入配置到文件夹 - ${folder.name}`,
+      content: '',
+      defaultFileName: '',
+      onImportConfirm: async (text) => {
+        const ok = await configService.importAutoFromText(text, currentTabIndex, folder.id)
+        if (ok) {
+          message.success('导入成功')
+          reload()
+          return true
+        }
+        return false
+      }
+    })
   }
 
   // 收集所有工作流（非文件夹，仅 type === 'workflow'）
@@ -335,6 +415,8 @@ export default function Home({ enterAction: _enterAction }) {
             onClick={() => setOpenFolder(item)}
             onEdit={() => handleEditItem(item)}
             onDelete={() => handleDeleteItem(item)}
+            onExport={handleExportFolder}
+            onImport={handleImportToFolder}
           />
         </Col>
       )
@@ -379,6 +461,7 @@ export default function Home({ enterAction: _enterAction }) {
           onTrigger={(val) => handleWorkflowTrigger(item, val)}
           onEdit={() => handleEditItem(item)}
           onDelete={() => handleDeleteItem(item)}
+          onExport={handleExportWorkflow}
         />
       </Col>
     )
@@ -445,20 +528,36 @@ export default function Home({ enterAction: _enterAction }) {
         )}
 
         {/* 内容区域 */}
-        {displayItems.length > 0 ? (
-          <Row gutter={[16, 16]}>{displayItems.map(renderItem)}</Row>
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              filter
-                ? '没有找到匹配的工作流'
-                : tabs && tabs.length > 0
-                  ? '当前标签页暂无内容，点击右上角配置添加'
-                  : '暂无标签页，点击右上角配置开始添加'
-            }
-          />
-        )}
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'import',
+                label: '导入工作流/文件夹',
+                icon: <ImportOutlined />,
+                onClick: handleImportToTab
+              }
+            ]
+          }}
+          trigger={['contextMenu']}
+        >
+          <div style={{ minHeight: 'calc(100vh - 120px)' }}>
+            {displayItems.length > 0 ? (
+              <Row gutter={[16, 16]}>{displayItems.map(renderItem)}</Row>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  filter
+                    ? '没有找到匹配的工作流'
+                    : tabs && tabs.length > 0
+                      ? '当前标签页暂无内容，点击右上角配置添加'
+                      : '暂无标签页，点击右上角配置开始添加'
+                }
+              />
+            )}
+          </div>
+        </Dropdown>
       </Space>
 
       {showConfigManager && (
@@ -479,24 +578,41 @@ export default function Home({ enterAction: _enterAction }) {
           onClose={() => setOpenFolder(null)}
           open={true}
         >
-          {openFolder.items && openFolder.items.length > 0 ? (
-            <Row gutter={[16, 16]}>
-              {openFolder.items.map((item) => (
-                <Col key={item.id}>
-                  <WorkflowCard
-                    workflow={item}
-                    loading={loadingMap[item.id]}
-                    onClick={() => handleWorkflowClick(item)}
-                    onTrigger={(val) => handleWorkflowTrigger(item, val)}
-                    onEdit={() => handleEditItem(item)}
-                    onDelete={() => handleDeleteItem(item)}
-                  />
-                </Col>
-              ))}
-            </Row>
-          ) : (
-            <Empty description="该文件夹暂无内容" />
-          )}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'import-to-folder',
+                  label: '导入工作流到此文件夹',
+                  icon: <ImportOutlined />,
+                  onClick: () => handleImportToFolder(openFolder)
+                }
+              ]
+            }}
+            trigger={['contextMenu']}
+          >
+            <div style={{ minHeight: '100%' }}>
+              {openFolder.items && openFolder.items.length > 0 ? (
+                <Row gutter={[16, 16]}>
+                  {openFolder.items.map((item) => (
+                    <Col key={item.id}>
+                      <WorkflowCard
+                        workflow={item}
+                        loading={loadingMap[item.id]}
+                        onClick={() => handleWorkflowClick(item)}
+                        onTrigger={(val) => handleWorkflowTrigger(item, val)}
+                        onEdit={() => handleEditItem(item)}
+                        onDelete={() => handleDeleteItem(item)}
+                        onExport={handleExportWorkflow}
+                      />
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="该文件夹暂无内容" />
+              )}
+            </div>
+          </Dropdown>
         </Drawer>
       )}
 
@@ -524,6 +640,16 @@ export default function Home({ enterAction: _enterAction }) {
           onCancel={() => setEditingItem(null)}
         />
       )}
+
+      <TransferModal
+        open={transferModal.open}
+        mode={transferModal.mode}
+        title={transferModal.title}
+        initialContent={transferModal.content}
+        defaultFileName={transferModal.defaultFileName}
+        onImportConfirm={transferModal.onImportConfirm}
+        onCancel={() => setTransferModal(prev => ({ ...prev, open: false }))}
+      />
     </Layout>
   )
 }

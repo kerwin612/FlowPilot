@@ -495,7 +495,7 @@ class ConfigService {
     }
   }
 
-  async importWorkflowFromText(text, targetTabIndex = 0) {
+  async importWorkflowFromText(text, targetTabIndex = 0, targetFolderId = null) {
     try {
       const data = JSON.parse(text)
       if (!data || data.type !== 'flowpilot/workflow-export') return false
@@ -508,11 +508,21 @@ class ConfigService {
       const wf = { ...data.workflow }
       const allIds = new Set(this.getAllWorkflows().map((x) => x.id))
       if (!wf.id || allIds.has(wf.id)) wf.id = `workflow_${Date.now()}`
-      const tab = this.getTab(targetTabIndex) || { id: `tab_${Date.now()}`, name: '导入', items: [] }
-      if (!this.tabs.includes(tab)) {
-        this.addTab(tab.name)
+      
+      if (targetFolderId) {
+        const tab = this.getTab(targetTabIndex)
+        if (!tab) return false
+        const folder = tab.items.find(it => it.id === targetFolderId && it.type === 'folder')
+        if (!folder) return false
+        folder.items = [...(folder.items || []), wf]
+        this.updateItem(targetTabIndex, targetFolderId, folder)
+      } else {
+        const tab = this.getTab(targetTabIndex) || { id: `tab_${Date.now()}`, name: '导入', items: [] }
+        if (!this.tabs.includes(tab)) {
+          this.addTab(tab.name)
+        }
+        this.addItem(targetTabIndex, wf)
       }
-      this.addItem(targetTabIndex, wf)
       return true
     } catch (e) {
       return false
@@ -586,13 +596,14 @@ class ConfigService {
     }
   }
 
-  async importAutoFromText(text, targetTabIndex = 0) {
+  async importAutoFromText(text, targetTabIndex = 0, targetFolderId = null) {
     try {
       const data = JSON.parse(text)
       if (data && data.type === 'flowpilot/workflow-export') {
-        return await this.importWorkflowFromText(text, targetTabIndex)
+        return await this.importWorkflowFromText(text, targetTabIndex, targetFolderId)
       }
       if (data && data.type === 'flowpilot/folder-export') {
+        // 文件夹不支持导入到文件夹中（目前架构不支持嵌套文件夹），所以忽略 targetFolderId
         return await this.importFolderFromText(text, targetTabIndex)
       }
       return false

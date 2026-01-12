@@ -154,6 +154,26 @@ class SystemService {
   }
 
   /**
+   * 写入文本文件到指定路径
+   * @param {string} filePath
+   * @param {string} content
+   * @returns {boolean} 是否成功
+   */
+  writeTextFileAt(filePath, content) {
+    if (typeof window !== 'undefined' && window.services?.writeTextFileAt) {
+      try {
+        window.services.writeTextFileAt(filePath, content)
+        return true
+      } catch (e) {
+        console.error('writeTextFileAt error', e)
+        return false
+      }
+    }
+    console.warn('window.services.writeTextFileAt 不可用')
+    return false
+  }
+
+  /**
    * 写入图片文件（用于 Write 功能）
    * @param {string} dataUrl - 图片 base64
    * @returns {string|null} 输出路径
@@ -366,6 +386,80 @@ class SystemService {
     }
     console.warn('utools.outPlugin 不可用')
     return false
+  }
+
+  // ==================== 高级文件操作（对话框+读写） ====================
+
+  /**
+   * 保存文件（包含文件选择对话框）
+   * @param {string} content - 文件内容
+   * @param {string} defaultFilename - 默认文件名
+   * @returns {Promise<boolean>} 是否成功
+   */
+  async saveFile(content, defaultFilename) {
+    // 1. 尝试使用 uTools 的保存对话框
+    const u = this.utools
+    if (u && typeof u.showSaveDialog === 'function') {
+      try {
+        const path = u.showSaveDialog({
+          title: '保存文件',
+          defaultPath: defaultFilename,
+          filters: [{ name: 'JSON', extensions: ['json'] }]
+        })
+        if (path) {
+          // uTools 只返回路径，需要自己写入
+          // 如果 window.services 可用，使用它写入
+          if (this.writeTextFileAt(path, content)) {
+            return true
+          }
+          // 如果只有 node fs（在 uTools 环境下通常有），可能需要其他方式
+          // 这里假设 writeTextFileAt (preload bridge) 总是可用的
+        }
+        return false // 用户取消或写入失败
+      } catch (e) {
+        console.error('saveFile (uTools) error:', e)
+      }
+    }
+
+    // 2. 降级：使用 selectPath 选择目录 (ConfigManager 的逻辑)
+    try {
+      const sel = await this.selectPath({
+        title: '选择保存目录',
+        properties: ['openDirectory', 'createDirectory']
+      })
+      const dirPath = Array.isArray(sel) ? sel[0] : (sel && sel[0])
+      if (!dirPath) return false
+
+      const sep = dirPath.includes('\\') ? '\\' : '/'
+      const normalized = dirPath.endsWith(sep) ? dirPath : (dirPath + sep)
+      const finalPath = normalized + defaultFilename
+      
+      return this.writeTextFileAt(finalPath, content)
+    } catch (e) {
+      console.error('saveFile (fallback) error:', e)
+      return false
+    }
+  }
+
+  /**
+   * 打开文件（包含文件选择对话框）
+   * @param {string[]} extensions - 扩展名列表
+   * @returns {Promise<string|null>} 文件内容，取消或失败返回 null
+   */
+  async openFile(extensions = ['json']) {
+    try {
+      const paths = await this.showOpenDialog({
+        title: '选择文件',
+        properties: ['openFile'],
+        filters: [{ name: 'Files', extensions }]
+      })
+      const filePath = Array.isArray(paths) ? paths[0] : (paths && paths[0])
+      if (!filePath) return null
+      return this.readFile(filePath)
+    } catch (e) {
+      console.error('openFile error:', e)
+      return null
+    }
   }
 
   // ==================== 命令执行（工作流） ====================

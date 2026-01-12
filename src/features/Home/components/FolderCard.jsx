@@ -4,7 +4,7 @@ import IconDisplay from './IconDisplay'
 
 const { Text } = Typography
 
-export default function FolderCard({ folder, onClick, onEdit, onDelete }) {
+export default function FolderCard({ folder, onClick, onEdit, onDelete, onExport, onImport }) {
   const itemCount = folder.items?.length || 0
 
   // 右键菜单项
@@ -16,6 +16,24 @@ export default function FolderCard({ folder, onClick, onEdit, onDelete }) {
       onClick: ({ domEvent }) => {
         domEvent?.stopPropagation()
         onEdit?.(folder)
+      }
+    },
+    {
+      key: 'export',
+      label: '导出文件夹',
+      icon: <Icons.ExportOutlined />,
+      onClick: ({ domEvent }) => {
+        domEvent?.stopPropagation()
+        onExport?.(folder)
+      }
+    },
+    {
+      key: 'import',
+      label: '导入到此文件夹',
+      icon: <Icons.ImportOutlined />,
+      onClick: ({ domEvent }) => {
+        domEvent?.stopPropagation()
+        onImport?.(folder)
       }
     }
   ]
@@ -44,11 +62,12 @@ export default function FolderCard({ folder, onClick, onEdit, onDelete }) {
   )
 
   return (
-    <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
-      <Card
-        hoverable
-        onClick={onClick}
-        style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
+    <div onContextMenu={(e) => e.stopPropagation()} style={{ display: 'inline-block' }}>
+      <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+        <Card
+          hoverable
+          onClick={onClick}
+          style={{ width: 110, height: 128, cursor: 'pointer', position: 'relative' }}
         styles={{
           body: {
             padding: 16,
@@ -88,6 +107,7 @@ export default function FolderCard({ folder, onClick, onEdit, onDelete }) {
           {folder.name || '未命名文件夹'}
         </Text>
       </Card>
-    </Dropdown>
+      </Dropdown>
+    </div>
   )
 }

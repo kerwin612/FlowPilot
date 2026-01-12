@@ -34,6 +34,7 @@ import { DndContext, useSensor, useSensors, PointerSensor, closestCenter, Keyboa
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { getWorkflowDisplayText } from '../workflow/workflowDisplay'
+import TransferModal from './TransferModal'
 import {
   ITEM_TYPE_WORKFLOW,
   ITEM_TYPE_FOLDER
@@ -295,138 +296,89 @@ export default function ConfigManager({ config, onClose }) {
       return
     }
   }
-  const [choiceVisible, setChoiceVisible] = useState(false)
-  const [choice, setChoice] = useState({ mode: null, entityId: null, tabIndex: null })
-  const [configText, setConfigText] = useState('')
-  const [importError, setImportError] = useState('')
+  const [transferModal, setTransferModal] = useState({
+    open: false,
+    mode: 'export',
+    title: '',
+    content: '',
+    defaultFileName: '',
+    onImportConfirm: null
+  })
 
-  const openChoice = (mode, payload) => {
-    console.log('[ConfigManager] openChoice', mode, payload)
-    setChoice({ mode, entityId: payload?.entityId || null, tabIndex: payload?.tabIndex ?? null })
-    setChoiceVisible(true)
-  }
-
-  const runChoice = async (target) => {
-    console.log('[ConfigManager] runChoice start', choice, target)
+  const openExportModal = (entityId) => {
     try {
-      if (choice.mode === 'export') {
-        if (target === 'clipboard') {
-          const ok = configService.exportToClipboard(configText || '')
-          console.log('[ConfigManager] export clipboard result', ok)
-          window.services.showNotification(ok ? '已复制到剪贴板' : '复制失败')
-        } else {
-          const sel = await window.services.selectPath({ properties: ['openDirectory', 'createDirectory'] })
-          const dirPath = Array.isArray(sel) ? sel[0] : (sel && sel[0])
-          if (!dirPath) { window.services.showNotification('未选择目录'); return }
-          const sep = dirPath.includes('\\') ? '\\' : '/'
-          const normalized = dirPath.endsWith(sep) ? dirPath : (dirPath + sep)
-          const baseName = (choice.entityId || 'export') + '_' + Date.now() + '.json'
-          const finalPath = normalized + baseName
-          console.log('[ConfigManager] export file path', finalPath)
-          const ok = configService.exportToFile(configText || '', finalPath)
-          console.log('[ConfigManager] export file result', ok)
-          window.services.showNotification(ok ? '已导出到文件' : '导出失败')
-        }
-      } else if (choice.mode === 'import') {
-        if (target === 'clipboard') {
-          try {
-            const text = await (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve(''))
-            setConfigText(text || '')
-            setImportError('')
-            window.services.showNotification(text ? '已写入剪贴板内容到输入框' : '剪贴板为空，请输入或从文件导入')
-          } catch {
-            window.services.showNotification('读取剪贴板失败，请输入或从文件导入')
-          }
-        } else {
-          const sel = await window.services.selectPath({ properties: ['openFile'] })
-          const filePath = Array.isArray(sel) ? sel[0] : (sel && sel[0])
-          if (!filePath) { window.services.showNotification('未选择文件'); return }
-          console.log('[ConfigManager] import file path', filePath)
-          try {
-            const content = await window.services.readFile(filePath)
-            setConfigText(content || '')
-            setImportError('')
-            window.services.showNotification(content ? '已写入文件内容到输入框' : '文件为空，请输入或从剪贴板导入')
-          } catch {
-            window.services.showNotification('读取文件失败')
-          }
-        }
-      } else if (choice.mode === 'import-wf') {
-        const tabIndex = choice.tabIndex ?? currentTabIndex
-        const folderId = choice.entityId
-        const addWorkflowIntoFolder = (wf) => {
-          const tab = tabs[tabIndex]
-          if (!tab) return false
-          const folder = tab.items.find((it) => it.id === folderId && it.type === 'folder')
-          if (!folder) return false
-          const allIds = new Set(configService.getAllWorkflows().map((x) => x.id))
-          const final = { ...wf }
-          if (!final.id || allIds.has(final.id)) final.id = `workflow_${Date.now()}_${Math.floor(Math.random()*1000)}`
-          folder.items = [...(folder.items || []), final]
-          configService.updateItem(tabIndex, folderId, folder)
-          setTabs(configService.getTabs())
-          return true
-        }
-
-        if (target === 'clipboard') {
-          try {
-            const text = await (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve(''))
-            if (!text) { window.services.showNotification('剪贴板为空，请改用文件导入'); return }
-            const data = JSON.parse(text)
-            if (data?.type === 'flowpilot/workflow-export' && data.workflow) {
-              const ok = addWorkflowIntoFolder(data.workflow)
-              window.services.showNotification(ok ? '已导入工作流至文件夹' : '导入失败')
-            } else if (data?.type === 'flowpilot/folder-export') {
-              window.services.showNotification('文件夹内只能导入工作流')
-            } else {
-              window.services.showNotification('导入失败：格式不正确')
-            }
-          } catch (e) {
-            window.services.showNotification('导入失败：无法读取剪贴板')
-          }
-        } else {
-          const sel = await window.services.selectPath({ properties: ['openFile'] })
-          const filePath = Array.isArray(sel) ? sel[0] : (sel && sel[0])
-          if (!filePath) { window.services.showNotification('未选择文件'); return }
-          try {
-            const text = await window.services.readFile(filePath)
-            const data = JSON.parse(text)
-            if (data?.type === 'flowpilot/workflow-export' && data.workflow) {
-              const ok = addWorkflowIntoFolder(data.workflow)
-              window.services.showNotification(ok ? '已导入工作流至文件夹' : '导入失败')
-            } else if (data?.type === 'flowpilot/folder-export') {
-              window.services.showNotification('文件夹内只能导入工作流')
-            } else {
-              window.services.showNotification('导入失败：格式不正确')
-            }
-          } catch (e) {
-            window.services.showNotification('导入失败：读取文件出错')
-          }
-        }
-      }
-    } finally {
-      console.log('[ConfigManager] runChoice end')
-      if (choiceVisible && (choice.mode !== 'import')) {
-        setChoiceVisible(false)
-        setChoice({ mode: null, entityId: null, tabIndex: null })
-      }
+      const json = configService.exportWorkflow(entityId) || configService.exportFolder(entityId) || ''
+      setTransferModal({
+        open: true,
+        mode: 'export',
+        title: '导出配置',
+        content: json,
+        defaultFileName: (entityId || 'export') + '.json',
+        onImportConfirm: null
+      })
+    } catch {
+      setTransferModal({
+        open: true,
+        mode: 'export',
+        title: '导出配置',
+        content: '',
+        defaultFileName: 'export.json',
+        onImportConfirm: null
+      })
     }
   }
 
-  const promptExport = async (entityId) => {
-    try {
-      const json = configService.exportWorkflow(entityId) || configService.exportFolder(entityId) || ''
-      setConfigText(json)
-    } catch { setConfigText('') }
-    openChoice('export', { entityId })
+  const openImportModal = (tabIndex) => {
+    setTransferModal({
+      open: true,
+      mode: 'import',
+      title: '导入配置',
+      content: '',
+      defaultFileName: '',
+      onImportConfirm: async (text) => {
+        const ok = await configService.importAutoFromText(text, tabIndex)
+        if (ok) {
+          setEnvVars(configService.getEnvVars())
+          setGlobalVars(configService.getGlobalVars())
+          setTabs(configService.getTabs())
+          return true
+        }
+        return false
+      }
+    })
   }
 
-  const promptImport = async (targetTabIndex) => {
-    try {
-      const text = await (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve(''))
-      setConfigText(text || '')
-    } catch { setConfigText('') }
-    openChoice('import', { tabIndex: targetTabIndex })
+  const openImportWfModal = (folderId, tabIndex) => {
+    setTransferModal({
+      open: true,
+      mode: 'import',
+      title: '导入工作流至文件夹',
+      content: '',
+      defaultFileName: '',
+      onImportConfirm: async (text) => {
+        try {
+          const data = JSON.parse(text)
+          if (data?.type === 'flowpilot/workflow-export' && data.workflow) {
+            const tab = tabs[tabIndex]
+            if (!tab) return false
+            const folder = tab.items.find((it) => it.id === folderId && it.type === 'folder')
+            if (!folder) return false
+            
+            const allIds = new Set(configService.getAllWorkflows().map((x) => x.id))
+            const final = { ...data.workflow }
+            if (!final.id || allIds.has(final.id)) final.id = `workflow_${Date.now()}_${Math.floor(Math.random()*1000)}`
+            
+            folder.items = [...(folder.items || []), final]
+            configService.updateItem(tabIndex, folderId, folder)
+            setTabs(configService.getTabs())
+            return true
+          }
+          return false
+        } catch {
+          return false
+        }
+      }
+    })
   }
 
   // 渲染文件夹内的项目
@@ -452,7 +404,7 @@ export default function ConfigManager({ config, onClose }) {
             size="small"
             title="导出工作流"
             icon={<ExportOutlined />}
-            onClick={() => promptExport(item.id)}
+            onClick={() => openExportModal(item.id)}
           />,
           <Popconfirm
             key="delete"
@@ -502,7 +454,7 @@ export default function ConfigManager({ config, onClose }) {
             size="small"
             title="导出工作流"
             icon={<ExportOutlined />}
-            onClick={() => promptExport(item.id)}
+            onClick={() => openExportModal(item.id)}
           />,
           <Popconfirm
             key="delete"
@@ -628,7 +580,7 @@ export default function ConfigManager({ config, onClose }) {
               <Button
                 icon={<ImportOutlined />}
                 title="导入工作流/文件夹"
-                onClick={() => promptImport(currentTabIndex)}
+                onClick={() => openImportModal(currentTabIndex)}
               ></Button>
             </Space>
           </Space>
@@ -691,7 +643,7 @@ export default function ConfigManager({ config, onClose }) {
                         size="small"
                         title="导出文件夹"
                         icon={<ExportOutlined />}
-                        onClick={(e) => { e.stopPropagation(); promptExport(item.id) }}
+                        onClick={(e) => { e.stopPropagation(); openExportModal(item.id) }}
                       />, 
                       <Button
                         key="import-wf-into-folder"
@@ -699,7 +651,7 @@ export default function ConfigManager({ config, onClose }) {
                         size="small"
                         title="导入工作流"
                         icon={<ImportOutlined />}
-                        onClick={(e) => { e.stopPropagation(); openChoice('import-wf', { entityId: item.id, tabIndex: currentTabIndex }) }}
+                        onClick={(e) => { e.stopPropagation(); openImportWfModal(item.id, currentTabIndex) }}
                       />, 
                       <Button
                         key="add"
@@ -817,8 +769,8 @@ export default function ConfigManager({ config, onClose }) {
                   }
                   onConfirm={() => {
                     configService.resetAll()
-                    if (window?.services?.showNotification) {
-                      window.services.showNotification('已重置默认配置')
+                    if (systemService.showNotification) {
+                      systemService.showNotification('已重置默认配置')
                     }
                   }}
                   okText="确认重置"
@@ -952,53 +904,15 @@ export default function ConfigManager({ config, onClose }) {
         />
       )}
 
-      <Modal
-        open={choiceVisible}
-        title={choice.mode === 'export' ? '导出' : '导入'}
-        onCancel={() => { setChoiceVisible(false); setChoice({ mode: null, entityId: null, tabIndex: null }) }}
-        footer={null}
-        width={800}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input.TextArea rows={20} value={configText} onChange={(e) => setConfigText(e.target.value)} placeholder={choice.mode === 'export' ? '请输入要导出的配置' : '请输入要导入的配置'} />
-          {choice.mode === 'import' && !!importError && (
-            <Text type="danger">{importError}</Text>
-          )}
-          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            {choice.mode === 'export' ? (
-              <>
-                <Button onClick={() => runChoice('file')}>导出到文件</Button>
-                <Button type="primary" onClick={() => runChoice('clipboard')}>导出到剪贴板</Button>
-              </>
-            ) : (
-              <>
-                <Button onClick={() => runChoice('file')}>从文件导入</Button>
-                <Button type="primary" onClick={async () => {
-                  try {
-                    const parsed = JSON.parse(configText || '')
-                    if (!parsed || !parsed.type || (parsed.type !== 'flowpilot/workflow-export' && parsed.type !== 'flowpilot/folder-export')) {
-                      setImportError('格式不正确：缺少或错误的 type 字段')
-                      return
-                    }
-                    setImportError('')
-                    const ok = await configService.importAutoFromText(configText || '', choice.tabIndex ?? currentTabIndex)
-                    window.services.showNotification(ok ? '已导入' : '导入失败或格式不正确')
-                    if (ok) {
-                      setEnvVars(configService.getEnvVars())
-                      setGlobalVars(configService.getGlobalVars())
-                      setTabs(configService.getTabs())
-                      setChoiceVisible(false)
-                      setChoice({ mode: null, entityId: null, tabIndex: null })
-                    }
-                  } catch (e) {
-                    setImportError('JSON 解析失败，请检查内容')
-                  }
-                }}>确认导入</Button>
-              </>
-            )}
-          </Space>
-        </Space>
-      </Modal>
+      <TransferModal
+        open={transferModal.open}
+        mode={transferModal.mode}
+        title={transferModal.title}
+        initialContent={transferModal.content}
+        defaultFileName={transferModal.defaultFileName}
+        onImportConfirm={transferModal.onImportConfirm}
+        onCancel={() => setTransferModal(prev => ({ ...prev, open: false }))}
+      />
     </>
   )
 }
