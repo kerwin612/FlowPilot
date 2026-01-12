@@ -3,7 +3,7 @@ import { Button, Space, Dropdown, Card, Switch, Modal, Typography, Alert, Collap
 import { ensureModal } from '../../../../shared/ui/modalHost'
 import { conditionRegistry } from '../../workflow/conditions/registry'
 import { Select } from 'antd'
-import { PlusOutlined, HolderOutlined, QuestionCircleOutlined } from '@ant-design/icons'
+import { PlusOutlined, HolderOutlined, QuestionCircleOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
 import {
   DndContext,
   closestCenter,
@@ -45,13 +45,27 @@ const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChan
     opacity: isDragging ? 0.5 : 1
   }
   const [showHelp, setShowHelp] = useState(false)
+  const [collapsed, setCollapsed] = useState(!ex._defaultExpanded)
 
   return (
     <div ref={setNodeRef} style={style}>
       <Card
         size="small"
+        styles={{ body: { display: collapsed ? 'none' : 'block' } }}
         title={
-          <Space size={8}>
+          <Space size={8} align="center">
+            <div
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--color-text-secondary)',
+                fontSize: 12
+              }}
+            >
+              {collapsed ? <RightOutlined /> : <DownOutlined />}
+            </div>
             <HolderOutlined
               {...listeners}
               {...attributes}
@@ -61,15 +75,20 @@ const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChan
                 fontSize: 'var(--font-size-md)'
               }}
             />
-            <span>
+            <span onClick={() => setCollapsed(!collapsed)} style={{ cursor: 'pointer' }}>
               #{index + 1} {def?.label || ex.key}
             </span>
-            <Button
-              type="text"
-              size="small"
-              icon={<QuestionCircleOutlined />}
-              onClick={() => setShowHelp((v) => !v)}
-            ></Button>
+            {!collapsed && (
+              <Button
+                type="text"
+                size="small"
+                icon={<QuestionCircleOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowHelp((v) => !v)
+                }}
+              ></Button>
+            )}
           </Space>
         }
         extra={

@@ -114,7 +114,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     if (!def) return
     setExecutors((prev) => [
       ...prev,
-      { id: genId(), key, config: def.getDefaultConfig?.() || {}, enabled: true }
+      { id: genId(), key, config: def.getDefaultConfig?.() || {}, enabled: true, _defaultExpanded: true }
     ])
   }
 
@@ -146,7 +146,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     if (!def) return
     setActions((prev) => [
       ...prev,
-      { id: genId(), key, config: def.getDefaultConfig?.() || {}, enabled: true }
+      { id: genId(), key, config: def.getDefaultConfig?.() || {}, enabled: true, _defaultExpanded: true }
     ])
   }
 
@@ -178,8 +178,8 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       const values = await form.validateFields()
 
       if (type !== ITEM_TYPE_FOLDER) {
-        values.executors = executors
-        values.actions = actions
+        values.executors = executors.map(({ _defaultExpanded, ...rest }) => rest)
+        values.actions = actions.map(({ _defaultExpanded, ...rest }) => rest)
         values.entryTriggers = entryTriggers
 
         // Handle feature configuration
