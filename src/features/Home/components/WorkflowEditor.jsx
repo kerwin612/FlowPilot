@@ -240,6 +240,21 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     onCancel()
   }
 
+  // 快捷键支持：Ctrl+S / Cmd+S 保存
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!open) return
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleOk()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, handleOk])
+
   return (
     <Modal
       title={
@@ -257,7 +272,16 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       okText="确定"
       cancelText="取消"
       width={'85%'}
+      centered
       style={{ maxWidth: 800 }}
+      styles={{
+        body: {
+          maxHeight: 'calc(100vh - 200px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          paddingRight: 6
+        }
+      }}
     >
       <Form form={form} layout="vertical">
         <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
