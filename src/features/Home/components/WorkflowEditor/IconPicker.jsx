@@ -28,7 +28,8 @@ export default function IconPicker({
   onTextChange,
   onSvgChange,
   onHoverChange,
-  formInstance
+  formInstance,
+  size = 64
 }) {
   const fileInputRef = useRef(null)
 
@@ -59,7 +60,7 @@ export default function IconPicker({
       iconText: iconType === ICON_TYPE_TEXT ? text : undefined,
       iconSvg: iconType === ICON_TYPE_SVG ? svg : undefined
     }
-    content = <IconDisplay data={data} size={64} />
+    content = <IconDisplay data={data} size={size} />
 
     const base = (
       <div
@@ -67,8 +68,8 @@ export default function IconPicker({
         onMouseLeave={() => onHoverChange(false)}
         style={{
           position: 'relative',
-          width: 64,
-          height: 64,
+          width: size,
+          height: size,
           cursor: 'pointer'
         }}
         title={'点击编辑图标'}

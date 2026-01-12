@@ -284,49 +284,55 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
       }}
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-          <Input placeholder="输入名称" />
-        </Form.Item>
-
-        <Form.Item label="图标">
-          <IconPicker
-            iconType={iconType}
-            selectedIcon={selectedIcon}
-            selectedColor={selectedColor}
-            previewImage={previewImage}
-            hovering={hovering}
-            emoji={emoji}
-            text={text}
-            svg={svg}
-            onIconTypeChange={setIconType}
-            onIconChange={(key) => {
-              setSelectedIcon(key)
-              form.setFieldValue('iconKey', key)
-            }}
-            onColorChange={(hex) => {
-              setSelectedColor(hex)
-              form.setFieldValue('iconColor', hex)
-            }}
-            onImageChange={(base64) => {
-              form.setFieldValue('icon', base64)
-              setPreviewImage(base64)
-            }}
-            onEmojiChange={(val) => {
-              setEmoji(val)
-              form.setFieldValue('iconEmoji', val)
-            }}
-            onTextChange={(val) => {
-              setText(val)
-              form.setFieldValue('iconText', val)
-            }}
-            onSvgChange={(val) => {
-              setSvg(val)
-              form.setFieldValue('iconSvg', val)
-            }}
-            onHoverChange={setHovering}
-            formInstance={form}
-          />
-        </Form.Item>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+              <Input placeholder="输入名称" size="large" />
+            </Form.Item>
+          </div>
+          <div style={{ flexShrink: 0 }}>
+            <Form.Item label="图标">
+              <IconPicker
+                size={40}
+                iconType={iconType}
+                selectedIcon={selectedIcon}
+                selectedColor={selectedColor}
+                previewImage={previewImage}
+                hovering={hovering}
+                emoji={emoji}
+                text={text}
+                svg={svg}
+                onIconTypeChange={setIconType}
+                onIconChange={(key) => {
+                  setSelectedIcon(key)
+                  form.setFieldValue('iconKey', key)
+                }}
+                onColorChange={(hex) => {
+                  setSelectedColor(hex)
+                  form.setFieldValue('iconColor', hex)
+                }}
+                onImageChange={(base64) => {
+                  form.setFieldValue('icon', base64)
+                  setPreviewImage(base64)
+                }}
+                onEmojiChange={(val) => {
+                  setEmoji(val)
+                  form.setFieldValue('iconEmoji', val)
+                }}
+                onTextChange={(val) => {
+                  setText(val)
+                  form.setFieldValue('iconText', val)
+                }}
+                onSvgChange={(val) => {
+                  setSvg(val)
+                  form.setFieldValue('iconSvg', val)
+                }}
+                onHoverChange={setHovering}
+                formInstance={form}
+              />
+            </Form.Item>
+          </div>
+        </div>
 
         {type !== ITEM_TYPE_FOLDER && (
           <>
