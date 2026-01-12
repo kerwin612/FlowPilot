@@ -808,15 +808,22 @@ export default function ConfigManager({ config, onClose }) {
               {activeProfileId === 'default' && (
                 <Popconfirm
                   title="确定重置默认配置？"
-                  description="将恢复为初始默认内容"
+                  description={
+                    <div style={{ maxWidth: 300 }}>
+                      <p>此操作将把<b>当前选中的“默认配置”</b>恢复为初始状态（仅包含基础的“示例”和“工具”），<b>不会影响其他配置档</b>。</p>
+                      <p style={{ color: 'var(--color-error)' }}>⚠️ 您在“默认配置”下创建的所有自定义工作流将被清空！</p>
+                      <p>建议您先新建一个配置档来保存自定义内容，或者先导出备份。</p>
+                    </div>
+                  }
                   onConfirm={() => {
                     configService.resetAll()
                     if (window?.services?.showNotification) {
                       window.services.showNotification('已重置默认配置')
                     }
                   }}
-                  okText="重置"
+                  okText="确认重置"
                   cancelText="取消"
+                  okButtonProps={{ danger: true }}
                 >
                   <Button danger icon={<ReloadOutlined />} title="重置默认配置" />
                 </Popconfirm>
@@ -824,12 +831,19 @@ export default function ConfigManager({ config, onClose }) {
               {profiles?.length > 1 && activeProfileId && activeProfileId !== 'default' && (
                 <Popconfirm
                   title="确定删除当前配置档？"
-                  description="删除后与其关联的工作流/变量也将移除"
+                  description={
+                    <div style={{ maxWidth: 300 }}>
+                      <p>此操作将<b>永久删除</b>当前配置档及其包含的所有数据，<b>不会影响其他配置档</b>。</p>
+                      <p style={{ color: 'var(--color-error)' }}>⚠️ 此操作不可恢复！</p>
+                      <p>建议您在删除前先导出备份。</p>
+                    </div>
+                  }
                   onConfirm={() => {
                     configService.deleteProfile(activeProfileId)
                   }}
-                  okText="删除"
+                  okText="确认删除"
                   cancelText="取消"
+                  okButtonProps={{ danger: true }}
                 >
                   <Button danger icon={<DeleteOutlined />} title="删除当前配置档" />
                 </Popconfirm>
