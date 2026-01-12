@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import { Button, Space, Dropdown, Card, Switch, Modal, Typography, Alert, Collapse } from 'antd'
+import { Button, Space, Dropdown, Card, Switch, Modal, Typography, Alert, Collapse, Input, Row, Col } from 'antd'
 import { ensureModal } from '../../../../shared/ui/modalHost'
 import { conditionRegistry } from '../../workflow/conditions/registry'
 import { Select } from 'antd'
@@ -31,7 +31,7 @@ const helpBoxStyle = {
 /**
  * 可排序执行器项
  */
-const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChange, onConditionChange, manualByKey }) => {
+const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChange, onTitleChange, onConditionChange, manualByKey }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: ex.id
   })
@@ -46,6 +46,9 @@ const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChan
   }
   const [showHelp, setShowHelp] = useState(false)
   const [collapsed, setCollapsed] = useState(!ex._defaultExpanded)
+
+  const title = ex.title || def?.label || ex.key
+  const subTitle = def?.label || ex.key
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -75,8 +78,13 @@ const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChan
                 fontSize: 'var(--font-size-md)'
               }}
             />
-            <span onClick={() => setCollapsed(!collapsed)} style={{ cursor: 'pointer' }}>
-              #{index + 1} {def?.label || ex.key}
+            <span onClick={() => setCollapsed(!collapsed)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontWeight: 500 }}>#{index + 1} {title}</span>
+              {title !== subTitle && (
+                <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 'normal' }}>
+                  {subTitle}
+                </span>
+              )}
             </span>
             {!collapsed && (
               <Button
@@ -116,35 +124,51 @@ const SortableExecutorItem = memo(({ ex, index, onToggle, onRemove, onConfigChan
             borderRadius: 8
           }}
         >
-          <Space style={{ width: '100%' }} direction="vertical">
-            <Space align="center">
-              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', width: 36 }}>
-                条件
+          <Space style={{ width: '100%' }} direction="vertical" size={12}>
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', width: 36, flexShrink: 0 }}>
+                名称
               </span>
-              <Select
+              <Input
                 size="small"
-                style={{ minWidth: 240 }}
-                value={ex.condition?.key || 'none'}
-                onChange={(k) => {
-                  if (k === 'none') {
-                    onConditionChange(ex.id, undefined)
-                    return
-                  }
-                  const defSel = conditionRegistry.get(k)
-                  const init = defSel?.getDefaultConfig?.() || {}
-                  onConditionChange(ex.id, { key: k, enabled: true, config: init })
-                }}
-                options={[{ value: 'none', label: '无条件（直接执行）' }, ...conditionRegistry.all().map((d) => ({ value: d.key, label: d.label }))]}
+                placeholder={`步骤名称（可选，默认：${subTitle}）`}
+                value={ex.title || ''}
+                onChange={(e) => onTitleChange(ex.id, e.target.value)}
+                style={{ flex: 1 }}
               />
-            </Space>
-            {CondC && ex.condition?.key && ex.condition?.key !== 'none' ? (
-              <div>
-                <CondC
-                  value={ex.condition?.config}
-                  onChange={(cfg) => onConditionChange(ex.id, { ...ex.condition, config: cfg })}
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', width: 36, flexShrink: 0 }}>
+                  条件
+                </span>
+                <Select
+                  size="small"
+                  style={{ flex: 1 }}
+                  value={ex.condition?.key || 'none'}
+                  onChange={(k) => {
+                    if (k === 'none') {
+                      onConditionChange(ex.id, undefined)
+                      return
+                    }
+                    const defSel = conditionRegistry.get(k)
+                    const init = defSel?.getDefaultConfig?.() || {}
+                    onConditionChange(ex.id, { key: k, enabled: true, config: init })
+                  }}
+                  options={[{ value: 'none', label: '无条件（直接执行）' }, ...conditionRegistry.all().map((d) => ({ value: d.key, label: d.label }))]}
                 />
               </div>
-            ) : null}
+              
+              {CondC && ex.condition?.key && ex.condition?.key !== 'none' && (
+                <div style={{ paddingLeft: 36 }}>
+                  <CondC
+                    value={ex.condition?.config}
+                    onChange={(cfg) => onConditionChange(ex.id, { ...ex.condition, config: cfg })}
+                  />
+                </div>
+              )}
+            </div>
           </Space>
         </div>
 
@@ -260,6 +284,7 @@ export default function ExecutorsEditor({
   onRemove,
   onToggle,
   onConfigChange,
+  onTitleChange,
   onConditionChange,
   onDragEnd,
   manualByKey
@@ -304,6 +329,7 @@ export default function ExecutorsEditor({
                 onToggle={onToggle}
                 onRemove={onRemove}
                 onConfigChange={onConfigChange}
+                onTitleChange={onTitleChange}
                 onConditionChange={onConditionChange}
                 manualByKey={manualByKey}
               />

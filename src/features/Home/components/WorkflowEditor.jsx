@@ -122,6 +122,10 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
     setExecutors((prev) => prev.map((e) => (e.id === id ? { ...e, config: next } : e)))
   }, [])
 
+  const updateExecutorTitle = useCallback((id, title) => {
+    setExecutors((prev) => prev.map((e) => (e.id === id ? { ...e, title } : e)))
+  }, [])
+
   const removeExecutor = (id) => setExecutors((prev) => prev.filter((e) => e.id !== id))
   const toggleExecutor = (id, val) =>
     setExecutors((prev) => prev.map((e) => (e.id === id ? { ...e, enabled: val } : e)))
@@ -152,6 +156,10 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
 
   const updateActionConfig = useCallback((id, next) => {
     setActions((prev) => prev.map((a) => (a.id === id ? { ...a, config: next } : a)))
+  }, [])
+
+  const updateActionTitle = useCallback((id, title) => {
+    setActions((prev) => prev.map((a) => (a.id === id ? { ...a, title } : a)))
   }, [])
 
   const removeAction = (id) => setActions((prev) => prev.filter((a) => a.id !== id))
@@ -447,6 +455,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onRemove={removeExecutor}
                 onToggle={toggleExecutor}
                 onConfigChange={updateExecutorConfig}
+                onTitleChange={updateExecutorTitle}
                 onConditionChange={updateExecutorCondition}
                 onDragEnd={handleExecutorDragEnd}
                 manualByKey={manualByKey}
@@ -564,6 +573,7 @@ export default function WorkflowEditor({ open, type, initialData, onSave, onCanc
                 onRemove={removeAction}
                 onToggle={toggleAction}
                 onConfigChange={updateActionConfig}
+                onTitleChange={updateActionTitle}
                 onConditionChange={updateActionCondition}
                 onDragEnd={handleActionDragEnd}
                 manualByKey={manualByKey}
