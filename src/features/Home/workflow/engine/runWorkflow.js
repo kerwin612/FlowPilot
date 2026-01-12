@@ -24,8 +24,8 @@ import { resolveAll } from '../../../../shared/template/globalVarResolver'
  * - workflow:cancel { reason }
  * - workflow:end { success, context, error }
  */
-export async function runComposedWorkflow(workflow, trigger = {}, options = {}) {
-  const { onEvent, signal } = options
+export async function runComposedWorkflow(workflow, trigger, options = {}) {
+  const { signal } = options
   const envs = configService.getEnabledEnvVars()
   const vars = configService.getGlobalVarsMap()
   Object.keys(envs).forEach((k) => {
@@ -195,10 +195,10 @@ export async function runComposedWorkflow(workflow, trigger = {}, options = {}) 
         try {
           const ok = await condDef.evaluate(trigger, context, condCfg)
           if (!ok) {
-            emitEvent('action:end', {
-              stepIndex: i,
+            emitEvent('action:skip', {
+              index: i,
               key: act.key,
-              enabled: true
+              reason: 'Condition not met'
             })
             continue
           }

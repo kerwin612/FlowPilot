@@ -62,7 +62,8 @@ export function initializeRegistries() {
   ]
   actions.forEach((def) => {
     try {
-      actionRegistry.register(def)
+      // 强制覆盖，确保热更新（HMR）时能使用最新的动作器实现
+      actionRegistry.register(def, { override: true })
     } catch (error) {
       console.error(`[Bootstrap] 动作器注册失败: ${def.key}`, error)
     }

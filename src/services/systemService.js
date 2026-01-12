@@ -350,6 +350,24 @@ class SystemService {
     return false
   }
 
+  /**
+   * 退出插件应用
+   * @param {boolean} [isKill=false] - 是否杀死进程
+   * @returns {boolean}
+   *
+   * 使用说明：
+   * - 默认行为 (isKill=false): 将插件隐藏到后台（下次打开保留状态）
+   * - isKill=true: 彻底结束插件进程（释放内存，下次打开重新加载）
+   */
+  outPlugin(isKill = false) {
+    const u = this.utools
+    if (u && typeof u.outPlugin === 'function') {
+      return u.outPlugin(isKill)
+    }
+    console.warn('utools.outPlugin 不可用')
+    return false
+  }
+
   // ==================== 命令执行（工作流） ====================
 
   /**

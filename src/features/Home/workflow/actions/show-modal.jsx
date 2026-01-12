@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Input, Select, Space } from 'antd'
+import { createRoot } from 'react-dom/client'
+import { Input, Select, Space, Modal, ConfigProvider, theme } from 'antd'
 import { resolveTemplate } from '../engine/compile'
-import { ensureModal } from '../../../../shared/ui/modalHost'
 import { systemService } from '../../../../services'
 import { callApi, attachWindowApis } from '../engine/apis'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 const { TextArea } = Input
-
-// 不再使用全局实例，由 modalHost 提供隔离的 modal
 
 const ShowModalConfig = ({ value = {}, onChange }) => {
   const [title, setTitle] = useState(value.title || '')
@@ -116,107 +114,149 @@ export const ShowModalAction = {
         .replace(/\n/g, '<br/>')
     }
 
-    const modal = await ensureModal()
+    // 包装为 Promise 以便等待弹窗关闭
+    return new Promise((resolve) => {
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
 
-    // 构建完整的 HTML，包含样式和内容
-    // 注入暗黑模式适配样式
-    const defaultStyles = `
-      .modal-content-wrapper {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        line-height: 1.6;
-        color: var(--color-text-primary, #000000e0);
+      // 检查暗黑模式
+      let isDark = false
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        isDark = true
       }
-      .modal-content-wrapper img {
-        max-width: 100%;
+      if (window.utools && window.utools.isDarkColors) {
+        isDark = window.utools.isDarkColors()
       }
-      /* Dark mode adaptation */
-      @media (prefers-color-scheme: dark) {
+
+      // 构建完整的 HTML，包含样式和内容
+      // 注入暗黑模式适配样式
+      const defaultStyles = `
         .modal-content-wrapper {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: var(--color-text-primary, #000000e0);
+        }
+        .modal-content-wrapper img {
+          max-width: 100%;
+        }
+        /* Dark mode adaptation */
+        @media (prefers-color-scheme: dark) {
+          .modal-content-wrapper {
+            color: var(--color-text-primary, #ffffffd9);
+          }
+        }
+        /* Explicit dark theme support via data-theme */
+        :root[data-theme='dark'] .modal-content-wrapper {
           color: var(--color-text-primary, #ffffffd9);
         }
-      }
-      /* Explicit dark theme support via data-theme */
-      :root[data-theme='dark'] .modal-content-wrapper {
-        color: var(--color-text-primary, #ffffffd9);
-      }
-    `
+      `
 
-    const fullHtml = `
-      <style>${defaultStyles}</style>
-      ${customStyles ? `<style>${customStyles}</style>` : ''}
-      <div class="modal-content-wrapper">
-        ${htmlContent}
-      </div>
-    `
+      const fullHtml = `
+        <style>${defaultStyles}</style>
+        ${customStyles ? `<style>${customStyles}</style>` : ''}
+        <div class="modal-content-wrapper">
+          ${htmlContent}
+        </div>
+      `
 
-    // 使用 dangerouslySetInnerHTML 渲染
-    const contentElement = React.createElement('div', {
-      dangerouslySetInnerHTML: { __html: fullHtml }
-    })
-
-    modal.info({
-      title,
-      content: contentElement,
-      okText: '确定',
-      width: 600,
-      maskClosable: true
-    })
-
-    setTimeout(() => {
-      const modalBody = document.querySelector('.ant-modal-body')
-      if (!modalBody) return
-      modalBody.addEventListener('click', async (e) => {
-        const target = e.target
-        const actEl = target.closest('[data-fp-action]')
-        if (actEl) {
-          e.preventDefault()
-          e.stopPropagation()
-          const action = String(actEl.getAttribute('data-fp-action') || '').trim()
-          const arg = actEl.getAttribute('data-fp-arg')
-          const args = actEl.getAttribute('data-fp-args')
+      const handleClose = () => {
+        // 先 resolve，允许工作流继续
+        resolve()
+        // 延迟卸载，等待动画
+        setTimeout(() => {
           try {
-            await callApi(action, arg ?? args)
-          } catch (err) {
-            systemService.showNotification(String(err?.message || err || '执行失败'))
-          }
-          return
-        }
+            root.unmount()
+          } catch {}
+          container.remove()
+        }, 300)
+      }
 
-        const link = target.closest('a[href]')
-        if (link) {
-          const href = link.getAttribute('href') || ''
-          if (href.startsWith('fp:') || href.startsWith('fp://')) {
-            e.preventDefault()
-            e.stopPropagation()
-            try {
-              const { name, payload } = parseFpHref(href)
-              await callApi(name, payload)
-            } catch (err) {
-              systemService.showNotification(String(err?.message || err || '执行失败'))
-            }
-            return
-          }
-          if (href && href !== '#') {
-            e.preventDefault()
-            e.stopPropagation()
-            systemService.openExternal(href)
-            return
-          }
-        }
+      const ModalContent = () => {
+        return (
+          <Modal
+            title={title}
+            open={true}
+            onOk={handleClose}
+            onCancel={handleClose}
+            okText="确定"
+            cancelButtonProps={{ style: { display: 'none' } }} // 隐藏取消按钮
+            width={520}
+            centered={true} // 垂直居中展示
+            maskClosable={false} // 保持防误触
+            keyboard={false}
+            zIndex={10001}
+            destroyOnClose
+            autoFocus={false}
+          >
+            <div
+              dangerouslySetInnerHTML={{ __html: fullHtml }}
+              onClick={async (e) => {
+                const target = e.target
+                const actEl = target.closest('[data-fp-action]')
+                if (actEl) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const action = String(actEl.getAttribute('data-fp-action') || '').trim()
+                  const arg = actEl.getAttribute('data-fp-arg')
+                  const args = actEl.getAttribute('data-fp-args')
+                  try {
+                    await callApi(action, arg ?? args)
+                  } catch (err) {
+                    systemService.showNotification(String(err?.message || err || '执行失败'))
+                  }
+                  return
+                }
 
-        const callText = target.getAttribute?.('data-fp-call') || target.textContent || ''
-        if (/^\s*@\w+\s*\(.*\)\s*$/.test(callText)) {
-          e.preventDefault()
-          e.stopPropagation()
-          try {
-            const { name, payload } = parseAtCall(callText)
-            await callApi(name, payload)
-          } catch (err) {
-            systemService.showNotification(String(err?.message || err || '执行失败'))
-          }
-        }
-      })
-    }, 50)
+                const link = target.closest('a[href]')
+                if (link) {
+                  const href = link.getAttribute('href') || ''
+                  if (href.startsWith('fp:') || href.startsWith('fp://')) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    try {
+                      const { name, payload } = parseFpHref(href)
+                      await callApi(name, payload)
+                    } catch (err) {
+                      systemService.showNotification(String(err?.message || err || '执行失败'))
+                    }
+                    return
+                  }
+                  if (href && href !== '#') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    systemService.openExternal(href)
+                    return
+                  }
+                }
+
+                const callText = target.getAttribute?.('data-fp-call') || target.textContent || ''
+                if (/^\s*@\w+\s*\(.*\)\s*$/.test(callText)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  try {
+                    const { name, payload } = parseAtCall(callText)
+                    await callApi(name, payload)
+                  } catch (err) {
+                    systemService.showNotification(String(err?.message || err || '执行失败'))
+                  }
+                }
+              }}
+            />
+          </Modal>
+        )
+      }
+
+      root.render(
+        <ConfigProvider
+          theme={{
+            algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm
+          }}
+        >
+          <ModalContent />
+        </ConfigProvider>
+      )
+    })
   }
 }
 

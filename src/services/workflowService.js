@@ -50,6 +50,10 @@ class WorkflowService {
       }
 
       await runComposedWorkflow(workflow, trigger, options)
+
+      // 工作流执行完成后，退出插件（隐藏到后台）
+      // TODO: 未来可在此处添加配置项判断：if (workflow.config?.closeAfterRun !== false)
+      systemService.outPlugin()
     } catch (error) {
       // 取消错误：显示轻量提示
       if (isCancelError(error)) {
