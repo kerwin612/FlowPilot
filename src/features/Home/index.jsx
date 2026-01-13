@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer, App, Dropdown } from 'antd'
-import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined, ImportOutlined } from '@ant-design/icons'
+import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined, ImportOutlined, PlusOutlined, FolderOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
@@ -156,6 +156,43 @@ export default function Home({ enterAction: _enterAction }) {
   }
 
   const handleSaveItem = (values) => {
+     // Handle new item creation from context menu
+     if (editingItem?.isNew && editingItem.tabIndex !== undefined) {
+       const tabIndex = editingItem.tabIndex
+       const folderId = editingItem.folderId
+       const itemType = editingItem.type === ITEM_TYPE_FOLDER ? ITEM_TYPE_FOLDER : ITEM_TYPE_WORKFLOW
+       
+       const newItem = {
+         ...values,
+         id: `${itemType}_${Date.now()}`,
+         type: itemType,
+         executors: itemType === ITEM_TYPE_FOLDER ? undefined : values.executors || [],
+         actions: itemType === ITEM_TYPE_FOLDER ? undefined : values.actions || []
+       }
+       
+       if (itemType === ITEM_TYPE_FOLDER && !newItem.items) {
+         newItem.items = []
+       }
+       
+       if (folderId) {
+         // Add to folder
+         const tab = tabs[tabIndex]
+         const folder = tab.items.find(it => it.id === folderId)
+         if (folder) {
+           folder.items = [...(folder.items || []), newItem]
+           configService.updateItem(tabIndex, folderId, folder)
+         }
+       } else {
+         // Add to tab root
+         configService.addItem(tabIndex, newItem)
+       }
+       
+       setEditingItem(null)
+       reload()
+       return
+     }
+     
+     // Handle existing item update
      if (!editingItem || !editingItem._location) return
      
      const { tabIndex, folderId } = editingItem._location
@@ -247,6 +284,18 @@ export default function Home({ enterAction: _enterAction }) {
         return false
       }
     })
+  }
+
+  const handleAddWorkflow = () => {
+    setEditingItem({ type: ITEM_TYPE_WORKFLOW, data: {}, isNew: true, tabIndex: currentTabIndex })
+  }
+
+  const handleAddFolder = () => {
+    setEditingItem({ type: ITEM_TYPE_FOLDER, data: {}, isNew: true, tabIndex: currentTabIndex })
+  }
+
+  const handleAddWorkflowToFolder = (folder) => {
+    setEditingItem({ type: ITEM_TYPE_WORKFLOW, data: {}, isNew: true, tabIndex: currentTabIndex, folderId: folder.id })
   }
 
   // 收集所有工作流（非文件夹，仅 type === 'workflow'）
@@ -532,6 +581,21 @@ export default function Home({ enterAction: _enterAction }) {
           menu={{
             items: [
               {
+                key: 'add-workflow',
+                label: '新增工作流',
+                icon: <PlusOutlined />,
+                onClick: handleAddWorkflow
+              },
+              {
+                key: 'add-folder',
+                label: '新增文件夹',
+                icon: <FolderOutlined />,
+                onClick: handleAddFolder
+              },
+              {
+                type: 'divider'
+              },
+              {
                 key: 'import',
                 label: '导入工作流/文件夹',
                 icon: <ImportOutlined />,
@@ -581,6 +645,15 @@ export default function Home({ enterAction: _enterAction }) {
           <Dropdown
             menu={{
               items: [
+                {
+                  key: 'add-workflow-to-folder',
+                  label: '新增工作流',
+                  icon: <PlusOutlined />,
+                  onClick: () => handleAddWorkflowToFolder(openFolder)
+                },
+                {
+                  type: 'divider'
+                },
                 {
                   key: 'import-to-folder',
                   label: '导入工作流到此文件夹',
