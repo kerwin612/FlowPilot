@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Tabs, Button, Space, Empty, Row, Col, Spin, Drawer, App, Dropdown } from 'antd'
-import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined, ImportOutlined, PlusOutlined, FolderOutlined } from '@ant-design/icons'
+import { SettingOutlined, GithubOutlined, ShareAltOutlined, RobotOutlined, ImportOutlined, PlusOutlined, FolderOutlined, HolderOutlined } from '@ant-design/icons'
 import useConfig from './hooks/useConfig'
 import useNavigation from './hooks/useNavigation'
 import useWorkflowExecution from './hooks/useWorkflowExecution'
@@ -12,6 +12,9 @@ import AiChatbot from './components/AiChatbot'
 import WorkflowEditor from './components/WorkflowEditor'
 import TransferModal from './components/TransferModal'
 import { ITEM_TYPE_FOLDER, ITEM_TYPE_WORKFLOW } from '../../shared/constants'
+import { DndContext, useSensor, useSensors, PointerSensor, closestCenter, KeyboardSensor, DragOverlay, useDroppable, pointerWithin, rectIntersection } from '@dnd-kit/core'
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 export default function Home({ enterAction: _enterAction }) {
   const { modal, message } = App.useApp()
@@ -25,6 +28,7 @@ export default function Home({ enterAction: _enterAction }) {
   const [activeTabKey, setActiveTabKey] = useState(String(currentTabIndex))
   const [showChatbot, setShowChatbot] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [activeId, setActiveId] = useState(null)
   
   const [transferModal, setTransferModal] = useState({
     open: false,
@@ -34,6 +38,12 @@ export default function Home({ enterAction: _enterAction }) {
     defaultFileName: '',
     onImportConfirm: null
   })
+
+  // 拖拽传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  )
 
   // no-op
 
@@ -298,6 +308,99 @@ export default function Home({ enterAction: _enterAction }) {
     setEditingItem({ type: ITEM_TYPE_WORKFLOW, data: {}, isNew: true, tabIndex: currentTabIndex, folderId: folder.id })
   }
 
+  // 拖拽处理逻辑
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id)
+  }
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+    setActiveId(null)
+    
+    if (!over) return
+    
+    const activeId = active.id
+    const overId = over.id
+    
+    if (activeId === overId) return
+    
+    const tab = tabs[currentTabIndex]
+    if (!tab) return
+    
+    // 检查 over 的类型：如果是 droppable (folder-drop-xxx)，说明是拖入文件夹
+    const isDropIntoFolder = String(overId).startsWith('folder-drop-')
+    const folderId = isDropIntoFolder ? String(overId).replace('folder-drop-', '') : null
+    
+    const rootIds = (tab.items || []).map(i => i.id)
+    const findFolderOf = (itemId) => tab.items.find(it => it.type === ITEM_TYPE_FOLDER && (it.items || []).some(s => s.id === itemId))
+    const fromFolder = findFolderOf(activeId)
+    
+    // 情况1：拖入文件夹 drop zone
+    if (isDropIntoFolder && folderId) {
+      if (fromFolder) {
+        // 从其他文件夹或同一文件夹拖入
+        if (fromFolder.id === folderId) {
+          // 同一文件夹，不做处理
+          return
+        }
+        configService.moveItemBetweenFolders(currentTabIndex, activeId, fromFolder.id, folderId)
+      } else {
+        // 从根级别拖入文件夹
+        configService.moveItemToFolder(currentTabIndex, activeId, folderId)
+      }
+      reload()
+      return
+    }
+    
+    // 情况2：从文件夹拖出到根级别
+    if (fromFolder && rootIds.includes(overId)) {
+      const targetIndex = tab.items.findIndex(i => i.id === overId)
+      configService.moveItemOutOfFolder(currentTabIndex, activeId, fromFolder.id, targetIndex)
+      reload()
+      // 如果当前打开的就是这个文件夹，刷新视图
+      if (openFolder && openFolder.id === fromFolder.id) {
+        const updatedTab = configService.getTab(currentTabIndex)
+        setOpenFolder(updatedTab?.items?.find(it => it.id === fromFolder.id) || null)
+      }
+      return
+    }
+    
+    // 情况3：根级别排序
+    if (rootIds.includes(activeId) && rootIds.includes(overId)) {
+      const oldIndex = tab.items.findIndex(i => i.id === activeId)
+      const newIndex = tab.items.findIndex(i => i.id === overId)
+      if (oldIndex < 0 || newIndex < 0) return
+      const next = arrayMove(tab.items, oldIndex, newIndex)
+      configService.reorderItems(currentTabIndex, next)
+      reload()
+      return
+    }
+    
+    // 情况4：文件夹内部排序
+    const overSubFolder = findFolderOf(overId)
+    if (fromFolder && overSubFolder && fromFolder.id === overSubFolder.id) {
+      const folder = tab.items.find(it => it.id === fromFolder.id)
+      if (folder) {
+        const oldIndex = folder.items.findIndex(i => i.id === activeId)
+        const newIndex = folder.items.findIndex(i => i.id === overId)
+        if (oldIndex >= 0 && newIndex >= 0) {
+          const next = arrayMove(folder.items, oldIndex, newIndex)
+          configService.reorderFolderItems(currentTabIndex, folder.id, next)
+          reload()
+          // 刷新 openFolder
+          if (openFolder && openFolder.id === folder.id) {
+            const updatedTab = configService.getTab(currentTabIndex)
+            setOpenFolder(updatedTab?.items?.find(it => it.id === folder.id) || null)
+          }
+        }
+      }
+    }
+  }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
+  }
+
   // 收集所有工作流（非文件夹，仅 type === 'workflow'）
   const allWorkflows = (tabs || []).flatMap((tab) =>
     (tab.items || []).flatMap((item) => {
@@ -455,18 +558,146 @@ export default function Home({ enterAction: _enterAction }) {
     execute(workflow, { entryMenuValue: value })
   }
 
+  // 可排序卡片组件
+  const SortableCard = ({ id, children }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging
+    } = useSortable({ id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+      position: 'relative'
+    }
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        <div
+          {...listeners}
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            zIndex: 10,
+            cursor: 'grab',
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            backgroundColor: 'var(--color-drag-handle-bg)',
+            opacity: 0,
+            transition: 'opacity 0.2s'
+          }}
+          className="drag-handle-home"
+        >
+          <HolderOutlined style={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+        </div>
+        {children}
+      </div>
+    )
+  }
+
+  // 文件夹 Drop Zone 组件
+  const FolderDropZone = ({ folderId, children }) => {
+    const { setNodeRef, isOver } = useDroppable({
+      id: `folder-drop-${folderId}`
+    })
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={{
+          position: 'relative',
+          outline: isOver ? '2px solid #1890ff' : 'none',
+          outlineOffset: '-2px',
+          borderRadius: '8px',
+          transition: 'outline 0.2s'
+        }}
+      >
+        {children}
+      </div>
+    )
+  }
+
+  // 用于文件夹内的可排序工作流项组件
+  const SortableFolderItem = ({ item, loading }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging
+    } = useSortable({ id: item.id })
+
+    const style = {
+      position: 'relative',
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1
+    }
+
+    return (
+      <Col>
+        <div ref={setNodeRef} style={style} {...attributes}>
+          <div
+            {...listeners}
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 10,
+              cursor: 'grab',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              backgroundColor: 'var(--color-drag-handle-bg)'
+            }}
+            className="drag-handle-folder"
+          >
+            <HolderOutlined style={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
+          </div>
+          <WorkflowCard
+            workflow={item}
+            loading={loading}
+            onClick={() => handleWorkflowClick(item)}
+            onTrigger={(val) => handleWorkflowTrigger(item, val)}
+            onEdit={() => handleEditItem(item)}
+            onDelete={() => handleDeleteItem(item)}
+            onExport={handleExportWorkflow}
+          />
+        </div>
+      </Col>
+    )
+  }
+
   const renderItem = (item) => {
     if (item.type === 'folder') {
       return (
         <Col key={item.id}>
-          <FolderCard
-            folder={item}
-            onClick={() => setOpenFolder(item)}
-            onEdit={() => handleEditItem(item)}
-            onDelete={() => handleDeleteItem(item)}
-            onExport={handleExportFolder}
-            onImport={handleImportToFolder}
-          />
+          <SortableCard id={item.id}>
+            <FolderDropZone folderId={item.id}>
+              <FolderCard
+                folder={item}
+                onClick={() => setOpenFolder(item)}
+                onEdit={() => handleEditItem(item)}
+                onDelete={() => handleDeleteItem(item)}
+                onExport={handleExportFolder}
+                onImport={handleImportToFolder}
+              />
+            </FolderDropZone>
+          </SortableCard>
         </Col>
       )
     }
@@ -503,15 +734,17 @@ export default function Home({ enterAction: _enterAction }) {
 
     return (
       <Col key={item.id}>
-        <WorkflowCard
-          workflow={item}
-          loading={loadingMap[item.id]}
-          onClick={handleCardClick}
-          onTrigger={(val) => handleWorkflowTrigger(item, val)}
-          onEdit={() => handleEditItem(item)}
-          onDelete={() => handleDeleteItem(item)}
-          onExport={handleExportWorkflow}
-        />
+        <SortableCard id={item.id}>
+          <WorkflowCard
+            workflow={item}
+            loading={loadingMap[item.id]}
+            onClick={handleCardClick}
+            onTrigger={(val) => handleWorkflowTrigger(item, val)}
+            onEdit={() => handleEditItem(item)}
+            onDelete={() => handleDeleteItem(item)}
+            onExport={handleExportWorkflow}
+          />
+        </SortableCard>
       </Col>
     )
   }
@@ -551,30 +784,37 @@ export default function Home({ enterAction: _enterAction }) {
   )
 
   return (
-    <Layout style={{ minHeight: '100vh', padding: '0px 16px 16px 16px' }}>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {/* 顶部导航：将配置按钮放入 Tabs 的 tabBarExtraContent，避免被挤压并启用溢出 ... */}
-        {tabItems.length > 0 && (
-          <Tabs
-            activeKey={activeTabKey}
-            onChange={(k) => {
-              setActiveTabKey(k)
-              if (k !== 'search') {
-                switchTab(Number(k))
-              }
-            }}
-            items={tabItems}
-            tabBarExtraContent={{
-              right: (
-                <Space>
-                  <Button type="text" title="项目主页" icon={<GithubOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot')} />
-                  <Button type="text" title="查阅/分享工作流" icon={<ShareAltOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot/issues/1')} />
-                  <Button type="text" title="配置管理" icon={<SettingOutlined />} onClick={() => setShowConfigManager(true)} />
-                </Space>
-              )
-            }}
-          />
-        )}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <Layout style={{ minHeight: '100vh', padding: '0px 16px 16px 16px' }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          {/* 顶部导航：将配置按钮放入 Tabs 的 tabBarExtraContent，避免被挤压并启用溢出 ... */}
+          {tabItems.length > 0 && (
+            <Tabs
+              activeKey={activeTabKey}
+              onChange={(k) => {
+                setActiveTabKey(k)
+                if (k !== 'search') {
+                  switchTab(Number(k))
+                }
+              }}
+              items={tabItems}
+              tabBarExtraContent={{
+                right: (
+                  <Space>
+                    <Button type="text" title="项目主页" icon={<GithubOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot')} />
+                    <Button type="text" title="查阅/分享工作流" icon={<ShareAltOutlined />} onClick={() => systemService.openExternal('https://github.com/kerwin612/FlowPilot/issues/1')} />
+                    <Button type="text" title="配置管理" icon={<SettingOutlined />} onClick={() => setShowConfigManager(true)} />
+                  </Space>
+                )
+              }}
+            />
+          )}
 
         {/* 内容区域 */}
         <Dropdown
@@ -606,8 +846,64 @@ export default function Home({ enterAction: _enterAction }) {
           trigger={['contextMenu']}
         >
           <div style={{ minHeight: 'calc(100vh - 120px)' }}>
+            <style>{`
+              .drag-handle-home {
+                opacity: 0;
+                transition: opacity 0.2s;
+              }
+              .ant-col:hover .drag-handle-home {
+                opacity: 1 !important;
+              }
+            `}</style>
             {displayItems.length > 0 ? (
-              <Row gutter={[16, 16]}>{displayItems.map(renderItem)}</Row>
+              // 搜索模式下禁用拖拽
+              activeTabKey === 'search' ? (
+                <Row gutter={[16, 16]}>
+                  {displayItems.map((item) => (
+                    <Col key={item.id}>
+                      {item.type === 'folder' ? (
+                        <FolderCard
+                          folder={item}
+                          onClick={() => setOpenFolder(item)}
+                          onEdit={() => handleEditItem(item)}
+                          onDelete={() => handleDeleteItem(item)}
+                          onExport={handleExportFolder}
+                          onImport={handleImportToFolder}
+                        />
+                      ) : (
+                        <WorkflowCard
+                          workflow={item}
+                          loading={loadingMap[item.id]}
+                          onClick={() => {
+                            const matchInfo = searchMetadata[item.id]
+                            const cmdType = matchInfo?.cmdType
+                            const matchedValue = matchInfo?.matchedValue
+                            if (!matchInfo?.matched) {
+                              handleWorkflowClick(item)
+                            } else if (cmdType === 'regex' || cmdType === 'over') {
+                              execute(item, {
+                                code: item.feature?.code,
+                                type: cmdType,
+                                payload: matchedValue
+                              })
+                            } else {
+                              handleWorkflowTrigger(item, filter)
+                            }
+                          }}
+                          onTrigger={(val) => handleWorkflowTrigger(item, val)}
+                          onEdit={() => handleEditItem(item)}
+                          onDelete={() => handleDeleteItem(item)}
+                          onExport={handleExportWorkflow}
+                        />
+                      )}
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <SortableContext items={displayItems.map(item => item.id)} strategy={rectSortingStrategy}>
+                  <Row gutter={[16, 16]}>{displayItems.map(renderItem)}</Row>
+                </SortableContext>
+              )
             ) : (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -619,8 +915,8 @@ export default function Home({ enterAction: _enterAction }) {
                       : '暂无标签页，点击右上角配置开始添加'
                 }
               />
-            )}
-          </div>
+              )}
+            </div>
         </Dropdown>
       </Space>
 
@@ -665,22 +961,23 @@ export default function Home({ enterAction: _enterAction }) {
             trigger={['contextMenu']}
           >
             <div style={{ minHeight: '100%' }}>
+              <style>{`
+                .drag-handle-folder {
+                  opacity: 0;
+                  transition: opacity 0.2s;
+                }
+                .ant-col:hover .drag-handle-folder {
+                  opacity: 1 !important;
+                }
+              `}</style>
               {openFolder.items && openFolder.items.length > 0 ? (
-                <Row gutter={[16, 16]}>
-                  {openFolder.items.map((item) => (
-                    <Col key={item.id}>
-                      <WorkflowCard
-                        workflow={item}
-                        loading={loadingMap[item.id]}
-                        onClick={() => handleWorkflowClick(item)}
-                        onTrigger={(val) => handleWorkflowTrigger(item, val)}
-                        onEdit={() => handleEditItem(item)}
-                        onDelete={() => handleDeleteItem(item)}
-                        onExport={handleExportWorkflow}
-                      />
-                    </Col>
-                  ))}
-                </Row>
+                <SortableContext items={openFolder.items.map(item => item.id)} strategy={rectSortingStrategy}>
+                  <Row gutter={[16, 16]}>
+                    {openFolder.items.map((item) => (
+                      <SortableFolderItem key={item.id} item={item} loading={loadingMap[item.id]} />
+                    ))}
+                  </Row>
+                </SortableContext>
               ) : (
                 <Empty description="该文件夹暂无内容" />
               )}
@@ -688,6 +985,45 @@ export default function Home({ enterAction: _enterAction }) {
           </Dropdown>
         </Drawer>
       )}
+
+      <DragOverlay dropAnimation={null} zIndex={2000}>
+        {activeId ? (
+          <div style={{ opacity: 0.9, transform: 'scale(1.05)', cursor: 'grabbing' }}>
+            {(() => {
+              // 先在 displayItems 中找
+              let item = displayItems.find(it => it.id === activeId)
+              // 如果没找到且有打开的文件夹，在文件夹中找
+              if (!item && openFolder) {
+                item = openFolder.items?.find(it => it.id === activeId)
+              }
+              if (!item) return null
+              if (item.type === 'folder') {
+                return (
+                  <FolderCard
+                    folder={item}
+                    onClick={() => {}}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    onExport={() => {}}
+                    onImport={() => {}}
+                  />
+                )
+              }
+              return (
+                <WorkflowCard
+                  workflow={item}
+                  loading={false}
+                  onClick={() => {}}
+                  onTrigger={() => {}}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onExport={() => {}}
+                />
+              )
+            })()}
+          </div>
+        ) : null}
+      </DragOverlay>
 
       <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 1000 }}>
         <Button
@@ -724,5 +1060,6 @@ export default function Home({ enterAction: _enterAction }) {
         onCancel={() => setTransferModal(prev => ({ ...prev, open: false }))}
       />
     </Layout>
+    </DndContext>
   )
 }

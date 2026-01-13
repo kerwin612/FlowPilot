@@ -42,6 +42,9 @@
 
   --color-icon-secondary: #999999;
 
+  /* === 交互元素 === */
+  --color-drag-handle-bg: rgba(0, 0, 0, 0.06);
+
   /* === 间距 === */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -93,6 +96,7 @@
     --color-border-dark: #666666;
     
     --color-icon-secondary: rgba(255, 255, 255, 0.45);
+    --color-drag-handle-bg: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -110,4 +114,5 @@
   --color-border-dark: #666666;
   
   --color-icon-secondary: rgba(255, 255, 255, 0.45);
+  --color-drag-handle-bg: rgba(255, 255, 255, 0.08);
 }
