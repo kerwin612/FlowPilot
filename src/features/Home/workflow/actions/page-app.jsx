@@ -161,19 +161,9 @@ async function executePageApp(trigger, context, config) {
       }
     }
   const win = utools.createBrowserWindow('page-app/index.html', options, () => {
-    // 如果开启单例模式，保存窗口实例
+    // 如果开启单例模式，保存窗口实例（用于下次打开时关闭旧窗口）
     if (singleton && workflowId) {
       pageAppWindows.set(workflowId, win)
-      // 监听窗口关闭事件，清理 Map
-      try {
-        win.on('closed', () => {
-          if (pageAppWindows.get(workflowId) === win) {
-            pageAppWindows.delete(workflowId)
-          }
-        })
-      } catch (e) {
-        console.error('[page-app] setup close listener error:', e)
-      }
     }
     
     try { if (fullscreen) win.setFullScreen(true) } catch (e) {

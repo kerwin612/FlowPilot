@@ -6,6 +6,23 @@ class WorkflowService {
   constructor() {
     this.executingMap = new Map()
     this.abortControllers = new Map()
+    // 调试模式开关（可通过 localStorage 或环境变量控制）
+    this.debugMode = false
+    this.enableDebugMode()
+  }
+
+  enableDebugMode(enabled = true) {
+    this.debugMode = enabled
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('flowpilot_debug', enabled ? '1' : '0')
+    }
+  }
+
+  isDebugMode() {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('flowpilot_debug') === '1'
+    }
+    return this.debugMode
   }
 
   /**
@@ -46,14 +63,19 @@ class WorkflowService {
       }
 
       const options = {
-        signal: abortController.signal
+        signal: abortController.signal,
+        onEvent: this.isDebugMode() ? this.createDebugEventHandler(workflow) : undefined
       }
 
       await runComposedWorkflow(workflow, trigger, options)
 
       // 工作流执行完成后，退出插件（隐藏到后台）
-      // TODO: 未来可在此处添加配置项判断：if (workflow.config?.closeAfterRun !== false)
-      systemService.outPlugin()
+      // 调试模式下不自动关闭，方便查看控制台输出
+      if (!this.isDebugMode()) {
+        systemService.outPlugin()
+      } else {
+        console.log('🐛 [调试模式] 工作流执行完成，主窗口保持打开以便查看日志')
+      }
     } catch (error) {
       // 取消错误：显示轻量提示
       if (isCancelError(error)) {
@@ -84,6 +106,101 @@ class WorkflowService {
 
   isExecuting(workflowId) {
     return this.executingMap.get(workflowId) || false
+  }
+
+  /**
+   * 创建调试事件处理器
+   */
+  createDebugEventHandler(workflow) {
+    const workflowName = workflow.name || workflow.id
+    const startTime = Date.now()
+    let executorIndex = 0
+    let actionIndex = 0
+
+    return (type, data) => {
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2)
+      const prefix = `[${elapsed}s] [${workflowName}]`
+
+      switch (type) {
+        case 'workflow:start':
+          console.group(`🚀 ${prefix} 工作流开始`)
+          console.log('工作流ID:', data.workflowId)
+          console.log('工作流名称:', data.workflowName)
+          console.groupEnd()
+          break
+
+        case 'executor:start':
+          executorIndex = data.stepIndex
+          console.group(`⚙️ ${prefix} Executor #${executorIndex + 1} 开始: ${data.key}`)
+          console.log('启用状态:', data.enabled)
+          console.log('配置:', data.config)
+          console.groupEnd()
+          break
+
+        case 'executor:end':
+          console.group(
+            data.error
+              ? `❌ ${prefix} Executor #${data.stepIndex + 1} 失败: ${data.key}`
+              : `✅ ${prefix} Executor #${data.stepIndex + 1} 完成: ${data.key}`
+          )
+          if (data.error) {
+            console.error('错误:', data.error)
+          } else if (data.result) {
+            console.log('结果:', data.result)
+            // 特别输出 command executor 的执行结果
+            if (data.key === 'command' && data.result.value?.execResult) {
+              console.log('命令输出:', data.result.value.execResult.result)
+              if (data.result.value.execResult.error) {
+                console.error('命令错误:', data.result.value.execResult.error)
+              }
+            }
+          }
+          console.groupEnd()
+          break
+
+        case 'action:start':
+          actionIndex = data.stepIndex
+          console.group(`🎬 ${prefix} Action #${actionIndex + 1} 开始: ${data.key}`)
+          console.log('启用状态:', data.enabled)
+          console.log('配置:', data.config)
+          console.groupEnd()
+          break
+
+        case 'action:end':
+          console.group(
+            data.error
+              ? `❌ ${prefix} Action #${data.stepIndex + 1} 失败: ${data.key}`
+              : `✅ ${prefix} Action #${data.stepIndex + 1} 完成: ${data.key}`
+          )
+          if (data.error) {
+            console.error('错误:', data.error)
+          }
+          console.groupEnd()
+          break
+
+        case 'workflow:cancel':
+          console.warn(`⚠️ ${prefix} 工作流已取消:`, data.reason)
+          break
+
+        case 'workflow:end':
+          console.group(
+            data.success
+              ? `🎉 ${prefix} 工作流完成`
+              : `💥 ${prefix} 工作流失败`
+          )
+          if (data.error) {
+            console.error('错误:', data.error)
+          }
+          if (data.context) {
+            console.log('最终上下文:', data.context)
+          }
+          console.groupEnd()
+          break
+
+        default:
+          console.log(`${prefix} ${type}:`, data)
+      }
+    }
   }
 }
 

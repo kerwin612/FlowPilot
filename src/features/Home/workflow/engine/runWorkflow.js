@@ -25,7 +25,7 @@ import { resolveAll } from '../../../../shared/template/globalVarResolver'
  * - workflow:end { success, context, error }
  */
 export async function runComposedWorkflow(workflow, trigger, options = {}) {
-  const { signal } = options
+  const { signal, onEvent } = options
   const envs = configService.getEnabledEnvVars()
   const vars = configService.getGlobalVarsMap()
   Object.keys(envs).forEach((k) => {
